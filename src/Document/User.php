@@ -2,16 +2,16 @@
 
 namespace App\Document;
 
-use ApiPlatform\Metadata\ApiResource;
 use App\Repository\UserRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ODM\MongoDB\Mapping\Annotations as ODM;
+use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
+use Symfony\Component\Security\Core\User\UserInterface;
 
 #[ODM\Document(repositoryClass: UserRepository::class)]
 #[ODM\HasLifecycleCallbacks]
-#[ApiResource]
-class User
+class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ODM\Id]
     private ?string $id = null;
@@ -211,4 +211,21 @@ class User
     {
         $this->updatedAt = new \DateTimeImmutable();
     }
+
+    public function getUserIdentifier(): string
+    {
+        return $this->email;
+    }
+
+    public function getRoles(): array
+    {
+        // Tu peux adapter selon tes besoins si plusieurs rôles sont possibles
+        return [$this->role ?? 'ROLE_USER'];
+    }
+
+    public function eraseCredentials(): void
+    {
+        // Laisse vide sauf si tu veux supprimer temporairement des données sensibles
+    }
+
 }
