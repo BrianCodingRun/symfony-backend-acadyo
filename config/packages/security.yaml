@@ -5,43 +5,32 @@ security:
 
     # https://symfony.com/doc/current/security.html#loading-the-user-the-user-provider
     providers:
-        app_user_provider:
-            mongodb: { class: App\Document\User, property: email }
+        users:
+            mongodb:
+                class: App\Document\User
+                property: email
 
     firewalls:
         dev:
             pattern: ^/(_(profiler|wdt)|css|images|js)/
             security: false
-
-        # Firewall spécifique pour le login
-        login:
-            pattern: ^/api/login # Plus spécifique avec $
+        main:
             stateless: true
-            provider: app_user_provider
+            provider: users
             json_login:
                 check_path: /api/login
                 username_path: email
                 password_path: password
                 success_handler: lexik_jwt_authentication.handler.authentication_success
                 failure_handler: lexik_jwt_authentication.handler.authentication_failure
-
-        # Firewall pour le reste de l'API
-        api:
-            pattern: ^/api
-            stateless: true
-            provider: app_user_provider
             jwt: ~
-
-        # Firewall par défaut
-        main:
-            lazy: true
 
     # Easy way to control access for large sections of your site
     # Note: Only the *first* access control that matches will be used
     access_control:
         - { path: ^/api/login, roles: PUBLIC_ACCESS }
         - { path: ^/api/register, roles: PUBLIC_ACCESS }
-        - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }
+        - { path: ^/api, roles: PUBLIC_ACCESS }
 
 when@test:
     security:

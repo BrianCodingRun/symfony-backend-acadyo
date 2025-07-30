@@ -220,7 +220,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getRoles(): array
     {
         // Tu peux adapter selon tes besoins si plusieurs rôles sont possibles
-        return [$this->role ?? 'ROLE_USER'];
+        return [$this->role ?? 'teacher'];
     }
 
     public function eraseCredentials(): void

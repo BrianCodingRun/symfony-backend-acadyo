@@ -3,6 +3,12 @@
 namespace App\Document;
 
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Delete;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Post;
+use ApiPlatform\Metadata\Put;
+use App\Controller\CourseController;
 use App\Repository\CourseRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -10,7 +16,20 @@ use Doctrine\ODM\MongoDB\Mapping\Annotations as ODM;
 use Doctrine\ODM\MongoDB\Types\Type;
 
 #[ODM\Document(repositoryClass: CourseRepository::class)]
-#[ApiResource]
+#[ODM\HasLifecycleCallbacks]
+#[ApiResource(operations: [
+    new Get(),
+    new GetCollection(),
+    new Post(
+        name: 'create_course',
+        controller: CourseController::class
+    ),
+    new Put(
+        name: 'update_course',
+        controller: CourseController::class
+    ),
+    new Delete()
+])]
 class Course
 {
     #[ODM\Id]
@@ -196,5 +215,19 @@ class Course
         }
 
         return $this;
+    }
+
+    #[ODM\PrePersist]
+    public function onPrePersist(): void
+    {
+        $now = new \DateTimeImmutable();
+        $this->createdAt = $now;
+        $this->updatedAt = $now;
+    }
+
+    #[ODM\PreUpdate]
+    public function onPreUpdate(): void
+    {
+        $this->updatedAt = new \DateTimeImmutable();
     }
 }

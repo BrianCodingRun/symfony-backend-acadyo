@@ -3,12 +3,32 @@
 namespace App\Document;
 
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Post;
+use ApiPlatform\Metadata\Put;
+use Symfony\Component\HttpFoundation\File\File;
 use App\Repository\LessonRepository;
 use Doctrine\ODM\MongoDB\Mapping\Annotations as ODM;
-use Doctrine\ODM\MongoDB\Types\Type;
+use Vich\UploaderBundle\Mapping\Annotation as Vich;
 
 #[ODM\Document(repositoryClass: LessonRepository::class)]
-#[ApiResource]
+#[ODM\HasLifecycleCallbacks]
+#[Vich\Uploadable]
+#[ApiResource(
+    types: ['https://schema.org/Book'],
+    operations: [
+        new Get(),
+        new GetCollection(),
+        new Post(
+            outputFormats: ['jsonld' => ['application/ld+json']],
+            inputFormats: ['multipart' => ['multipart/form-data']],
+        ),
+        new Put(
+            inputFormats: ['multipart' => ['multipart/form-data']],
+        )
+    ]
+)]
 class Lesson
 {
     #[ODM\Id]
@@ -20,8 +40,14 @@ class Lesson
     #[ODM\Field(nullable: true)]
     private ?string $content = null;
 
-    #[ODM\Field(type: Type::COLLECTION, nullable: true)]
-    private array $files = [];
+    #[Vich\UploadableField(
+        mapping: 'media_object',
+        fileNameProperty: 'filePath'
+    )]
+    public ?File $file = null;
+
+    #[ODM\Field(nullable: true)]
+    public ?string $filePath = null;
 
     #[ODM\ReferenceOne(targetDocument: Course::class, inversedBy: 'lessons')]
     private ?Course $course = null;
@@ -61,18 +87,6 @@ class Lesson
         return $this;
     }
 
-    public function getFiles(): array
-    {
-        return $this->files;
-    }
-
-    public function setFiles(?array $files): static
-    {
-        $this->files = $files;
-
-        return $this;
-    }
-
     public function getCourse(): ?Course
     {
         return $this->course;
@@ -108,4 +122,19 @@ class Lesson
 
         return $this;
     }
+
+    #[ODM\PrePersist]
+    public function onPrePersist(): void
+    {
+        $now = new \DateTimeImmutable();
+        $this->createdAt = $now;
+        $this->updatedAt = $now;
+    }
+
+    #[ODM\PreUpdate]
+    public function onPreUpdate(): void
+    {
+        $this->updatedAt = new \DateTimeImmutable();
+    }
+
 }
