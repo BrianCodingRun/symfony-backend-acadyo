@@ -2,6 +2,7 @@
 
 namespace App\Document;
 
+use ApiPlatform\Metadata\ApiResource;
 use App\Repository\UserRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -11,6 +12,7 @@ use Symfony\Component\Security\Core\User\UserInterface;
 
 #[ODM\Document(repositoryClass: UserRepository::class)]
 #[ODM\HasLifecycleCallbacks]
+#[ApiResource]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ODM\Id]
@@ -37,8 +39,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ODM\ReferenceMany(targetDocument: Course::class, nullable: true, mappedBy: 'teacher')]
     private Collection $courses;
 
-    #[ODM\ReferenceOne(targetDocument: Assignment::class, inversedBy: 'assignedTo')]
-    private ?Assignment $assignment = null;
+    #[ODM\ReferenceMany(targetDocument: Assignment::class, mappedBy: 'assignedTo')]
+    private Collection $assignments;
 
     #[ODM\ReferenceMany(targetDocument: Submission::class, nullable: true, mappedBy: 'student')]
     private Collection $submissions;
@@ -47,6 +49,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         $this->courses = new ArrayCollection();
         $this->submissions = new ArrayCollection();
+        $this->assignments = new ArrayCollection();
     }
 
     public function getId(): ?string
@@ -156,15 +159,25 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    public function getAssignment(): ?Assignment
+    public function getAssignments(): Collection
     {
-        return $this->assignment;
+        return $this->assignments;
     }
 
-    public function setAssignment(?Assignment $assignment): static
+    public function addAssignment(Assignment $assignment): static
     {
-        $this->assignment = $assignment;
+        if (!$this->assignments->contains($assignment)) {
+            $this->assignments->add($assignment);
+            $assignment->addAssignedTo($this);
+        }
+        return $this;
+    }
 
+    public function removeAssignment(Assignment $assignment): static
+    {
+        if ($this->assignments->removeElement($assignment)) {
+            $assignment->removeAssignedTo($this);
+        }
         return $this;
     }
 

@@ -10,6 +10,7 @@ use Doctrine\ODM\MongoDB\Mapping\Annotations as ODM;
 use Doctrine\ODM\MongoDB\Types\Type;
 
 #[ODM\Document(repositoryClass: AssignmentRepository::class)]
+#[ODM\HasLifecycleCallbacks]
 #[ApiResource]
 class Assignment
 {
@@ -28,7 +29,8 @@ class Assignment
     #[ODM\ReferenceOne(targetDocument: Course::class, inversedBy: 'assignments')]
     private ?Course $course = null;
 
-    #[ODM\ReferenceMany(targetDocument: User::class, orphanRemoval: true, mappedBy: 'assignment')]
+    // CORRECTION: Relation Many-to-Many avec inversedBy au lieu de mappedBy
+    #[ODM\ReferenceMany(targetDocument: User::class, inversedBy: 'assignments')]
     private Collection $assignedTo;
 
     #[ODM\Field]
@@ -107,11 +109,12 @@ class Assignment
         return $this->assignedTo;
     }
 
+    // CORRECTION: Méthodes add/remove pour relation Many-to-Many
     public function addAssignedTo(User $assignedTo): static
     {
         if (!$this->assignedTo->contains($assignedTo)) {
             $this->assignedTo->add($assignedTo);
-            $assignedTo->setAssignment($this);
+            $assignedTo->addAssignment($this); // addAssignment au lieu de setAssignment
         }
 
         return $this;
@@ -120,10 +123,7 @@ class Assignment
     public function removeAssignedTo(User $assignedTo): static
     {
         if ($this->assignedTo->removeElement($assignedTo)) {
-            // set the owning side to null (unless already changed)
-            if ($assignedTo->getAssignment() === $this) {
-                $assignedTo->setAssignment(null);
-            }
+            $assignedTo->removeAssignment($this); // removeAssignment au lieu de setAssignment(null)
         }
 
         return $this;
@@ -181,5 +181,19 @@ class Assignment
         }
 
         return $this;
+    }
+
+    #[ODM\PrePersist]
+    public function onPrePersist(): void
+    {
+        $now = new \DateTimeImmutable();
+        $this->createdAt = $now;
+        $this->updatedAt = $now;
+    }
+
+    #[ODM\PreUpdate]
+    public function onPreUpdate(): void
+    {
+        $this->updatedAt = new \DateTimeImmutable();
     }
 }

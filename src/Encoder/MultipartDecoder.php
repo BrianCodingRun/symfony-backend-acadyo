@@ -4,7 +4,6 @@ namespace App\Encoder;
 
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Serializer\Encoder\DecoderInterface;
-use function is_array;
 
 final class MultipartDecoder implements DecoderInterface
 {
@@ -22,24 +21,39 @@ final class MultipartDecoder implements DecoderInterface
       return null;
     }
 
-    return array_map(static function ($element) {
-      // Try to decode JSON strings
-      $decoded = json_decode($element, true);
+    $decodedData = [];
 
-      if (is_array($decoded)) {
-        return $decoded;
+    // Traiter les données de formulaire
+    foreach ($request->request->all() as $key => $value) {
+      // Essayer de décoder les chaînes JSON
+      if (is_string($value)) {
+        $decoded = json_decode($value, true);
+        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+          $decodedData[$key] = $decoded;
+          continue;
+        }
+
+        // Gérer les booléens
+        if ($value === 'true') {
+          $decodedData[$key] = true;
+          continue;
+        }
+        if ($value === 'false') {
+          $decodedData[$key] = false;
+          continue;
+        }
       }
 
-      // Handle boolean conversion
-      if ($element === 'true') {
-        return true;
-      }
-      if ($element === 'false') {
-        return false;
-      }
+      $decodedData[$key] = $value;
+    }
 
-      return $element;
-    }, $request->request->all()) + $request->files->all();
+    // Ajouter les fichiers uploadés
+    foreach ($request->files->all() as $key => $file) {
+      $decodedData[$key] = $file;
+    }
+
+    // IMPORTANT: Retourner les données même si vides pour que le decoder soit utilisé
+    return $decodedData ?: [];
   }
 
   public function supportsDecoding(string $format): bool
