@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Document\Course;
+use App\Document\User;
 use Doctrine\ODM\MongoDB\DocumentManager;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -12,13 +13,23 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route("/api")]
 final class CourseController extends AbstractController
 {
+    /**
+     * @return User
+     */
+    private function getCurrentUser(): User
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        return $user;
+    }
+
     #[Route('/courses', name: 'create_course', methods: ['POST'])]
     public function create(Request $request, DocumentManager $dm): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
 
         // Vérifie que l'utilisateur est connecté et est formateur
-        $user = $this->getUser();
+        $user = $this->getCurrentUser();
 
         if (!$user || !in_array('teacher', $user->getRoles())) {
             return $this->json(['error' => 'Unauthorized'], 401);
@@ -51,7 +62,7 @@ final class CourseController extends AbstractController
     {
         $data = json_decode($request->getContent(), true);
 
-        $user = $this->getUser();
+        $user = $this->getCurrentUser();
 
         if (!$user || !in_array('teacher', $user->getRoles())) {
             return $this->json(['error' => 'Unauthorized'], 401);

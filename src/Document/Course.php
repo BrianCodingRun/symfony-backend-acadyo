@@ -47,8 +47,8 @@ class Course
     #[ODM\ReferenceOne(targetDocument: User::class, inversedBy: 'courses')]
     private ?User $teacher = null;
 
-    #[ODM\Field(type: Type::COLLECTION, nullable: true)]
-    private array $students = [];
+    #[ODM\ReferenceMany(targetDocument: User::class, storeAs: "id")]
+    private Collection $students;
 
     #[ODM\Field]
     private ?\DateTimeImmutable $createdAt = null;
@@ -66,6 +66,7 @@ class Course
     {
         $this->lessons = new ArrayCollection();
         $this->assignments = new ArrayCollection();
+        $this->students = new ArrayCollection();
     }
 
     public function getId(): ?string
@@ -121,16 +122,41 @@ class Course
         return $this;
     }
 
-    public function getStudents(): array
+    public function getStudents(): Collection
     {
         return $this->students;
     }
 
-    public function setStudents(?array $students): static
+    public function addStudent(User $student): static
     {
-        $this->students = $students;
-
+        if (!$this->students->contains($student)) {
+            $this->students->add($student);
+        }
         return $this;
+    }
+
+    public function removeStudent(User $student): static
+    {
+        $this->students->removeElement($student);
+        return $this;
+    }
+
+    public function hasStudent(User $student): bool
+    {
+        return $this->students->contains($student);
+    }
+
+    public function getStudentsCount(): int
+    {
+        return $this->students->count();
+    }
+
+    // Pour l'API - retourne un array d'IDs des étudiants
+    public function getStudentIds(): array
+    {
+        return $this->students->map(function (User $student) {
+            return $student->getId();
+        })->toArray();
     }
 
     public function getCreatedAt(): ?\DateTimeImmutable

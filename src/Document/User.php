@@ -27,8 +27,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ODM\Field]
     private ?string $password = null;
 
-    #[ODM\Field]
-    private ?string $role = null;
+    // CHANGEMENT : Support des rôles multiples pour Symfony Security
+    #[ODM\Field(type: "collection")]
+    private array $roles = [];
 
     #[ODM\Field]
     private ?\DateTimeImmutable $createdAt = null;
@@ -36,8 +37,13 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ODM\Field]
     private ?\DateTimeImmutable $updatedAt = null;
 
+    // Cours créés par ce professeur
     #[ODM\ReferenceMany(targetDocument: Course::class, nullable: true, mappedBy: 'teacher')]
     private Collection $courses;
+
+    // AJOUT : Cours où cet utilisateur est étudiant
+    #[ODM\ReferenceMany(targetDocument: Course::class, storeAs: "id")]
+    private Collection $enrolledCourses;
 
     #[ODM\ReferenceMany(targetDocument: Assignment::class, mappedBy: 'assignedTo')]
     private Collection $assignments;
@@ -48,6 +54,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function __construct()
     {
         $this->courses = new ArrayCollection();
+        $this->enrolledCourses = new ArrayCollection(); // AJOUT
         $this->submissions = new ArrayCollection();
         $this->assignments = new ArrayCollection();
     }
@@ -65,7 +72,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setName(string $name): static
     {
         $this->name = $name;
-
         return $this;
     }
 
@@ -77,7 +83,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setEmail(string $email): static
     {
         $this->email = $email;
-
         return $this;
     }
 
@@ -89,20 +94,52 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setPassword(string $password): static
     {
         $this->password = $password;
-
         return $this;
     }
 
-    public function getRole(): ?string
+    // CHANGEMENT : Gestion des rôles compatible Symfony Security
+    public function getRoles(): array
     {
-        return $this->role;
+        $roles = $this->roles;
+        // Garantir qu'au moins ROLE_USER est présent
+        $roles[] = 'ROLE_USER';
+        return array_unique($roles);
     }
 
-    public function setRole(string $role): static
+    public function setRoles(array $roles): static
     {
-        $this->role = $role;
-
+        $this->roles = $roles;
         return $this;
+    }
+
+    public function addRole(string $role): static
+    {
+        if (!in_array($role, $this->roles)) {
+            $this->roles[] = $role;
+        }
+        return $this;
+    }
+
+    public function removeRole(string $role): static
+    {
+        $this->roles = array_filter($this->roles, fn($r) => $r !== $role);
+        return $this;
+    }
+
+    public function hasRole(string $role): bool
+    {
+        return in_array($role, $this->getRoles());
+    }
+
+    // Méthodes de commodité pour les rôles
+    public function isTeacher(): bool
+    {
+        return $this->hasRole('ROLE_TEACHER');
+    }
+
+    public function isStudent(): bool
+    {
+        return $this->hasRole('ROLE_STUDENT');
     }
 
     public function getCreatedAt(): ?\DateTimeImmutable
@@ -113,7 +150,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setCreatedAt(\DateTimeImmutable $createdAt): static
     {
         $this->createdAt = $createdAt;
-
         return $this;
     }
 
@@ -125,10 +161,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setUpdatedAt(\DateTimeImmutable $updatedAt): static
     {
         $this->updatedAt = $updatedAt;
-
         return $this;
     }
 
+    // Cours créés (pour les professeurs)
     /**
      * @return Collection<int, Course>
      */
@@ -143,22 +179,48 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             $this->courses->add($course);
             $course->setTeacher($this);
         }
-
         return $this;
     }
 
     public function removeCourse(Course $course): static
     {
         if ($this->courses->removeElement($course)) {
-            // set the owning side to null (unless already changed)
             if ($course->getTeacher() === $this) {
                 $course->setTeacher(null);
             }
         }
-
         return $this;
     }
 
+    // AJOUT : Cours où l'utilisateur est inscrit (pour les étudiants)
+    /**
+     * @return Collection<int, Course>
+     */
+    public function getEnrolledCourses(): Collection
+    {
+        return $this->enrolledCourses;
+    }
+
+    public function addEnrolledCourse(Course $course): static
+    {
+        if (!$this->enrolledCourses->contains($course)) {
+            $this->enrolledCourses->add($course);
+        }
+        return $this;
+    }
+
+    public function removeEnrolledCourse(Course $course): static
+    {
+        $this->enrolledCourses->removeElement($course);
+        return $this;
+    }
+
+    public function isEnrolledIn(Course $course): bool
+    {
+        return $this->enrolledCourses->contains($course);
+    }
+
+    // Gestion des assignments
     public function getAssignments(): Collection
     {
         return $this->assignments;
@@ -195,19 +257,16 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             $this->submissions->add($submission);
             $submission->setStudent($this);
         }
-
         return $this;
     }
 
     public function removeSubmission(Submission $submission): static
     {
         if ($this->submissions->removeElement($submission)) {
-            // set the owning side to null (unless already changed)
             if ($submission->getStudent() === $this) {
                 $submission->setStudent(null);
             }
         }
-
         return $this;
     }
 
@@ -230,15 +289,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->email;
     }
 
-    public function getRoles(): array
-    {
-        // Tu peux adapter selon tes besoins si plusieurs rôles sont possibles
-        return [$this->role ?? 'teacher'];
-    }
-
     public function eraseCredentials(): void
     {
         // Laisse vide sauf si tu veux supprimer temporairement des données sensibles
     }
-
 }
