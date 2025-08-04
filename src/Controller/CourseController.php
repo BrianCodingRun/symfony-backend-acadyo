@@ -31,7 +31,7 @@ final class CourseController extends AbstractController
         // Vérifie que l'utilisateur est connecté et est formateur
         $user = $this->getCurrentUser();
 
-        if (!$user || !in_array('teacher', $user->getRoles())) {
+        if (!$user || !in_array('ROLE_TEACHER', $user->getRoles())) {
             return $this->json(['error' => 'Unauthorized'], 401);
         }
 

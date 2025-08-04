@@ -35,9 +35,8 @@ final class RegistrationController extends AbstractController
         $user->setName($data['name']);
         $user->setEmail($data['email']);
 
-        // Définir un rôle par défaut si non spécifié
-        $roles = $data['roles'] ?? 'ROLE_STUDENT';
-        $user->setRoles($roles);
+        // Role étudiant attribué par défaut
+        $user->setRoles(['ROLE_STUDENT']);
 
         $hashedPassword = $passwordHasher->hashPassword(
             $user,

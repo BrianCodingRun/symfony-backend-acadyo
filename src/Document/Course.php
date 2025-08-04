@@ -13,7 +13,6 @@ use App\Repository\CourseRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ODM\MongoDB\Mapping\Annotations as ODM;
-use Doctrine\ODM\MongoDB\Types\Type;
 
 #[ODM\Document(repositoryClass: CourseRepository::class)]
 #[ODM\HasLifecycleCallbacks]
@@ -21,14 +20,16 @@ use Doctrine\ODM\MongoDB\Types\Type;
     new Get(),
     new GetCollection(),
     new Post(
+        security: "is_granted('ROLE_TEACHER')",
         name: 'create_course',
         controller: CourseController::class
     ),
     new Put(
+        security: "is_granted('ROLE_TEACHER')",
         name: 'update_course',
         controller: CourseController::class
     ),
-    new Delete()
+    new Delete(security: "is_granted('ROLE_TEACHER')")
 ])]
 class Course
 {

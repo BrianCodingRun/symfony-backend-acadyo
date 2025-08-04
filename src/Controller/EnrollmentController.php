@@ -173,10 +173,9 @@ class EnrollmentController extends AbstractController
     }
 
     /**
-     * Obtenir les étudiants d'un cours (pour le professeur)
+     * Obtenir les étudiants d'un cours
      */
     #[Route('/course/{courseId}/students', name: 'api_course_students', methods: ['GET'])]
-    #[IsGranted('ROLE_TEACHER')]
     public function getCourseStudents(string $courseId): JsonResponse
     {
         $user = $this->getUser();
@@ -187,14 +186,6 @@ class EnrollmentController extends AbstractController
                 'success' => false,
                 'message' => 'Cours non trouvé'
             ], 404);
-        }
-
-        // Vérifier que l'utilisateur est bien le professeur de ce cours
-        if ($course->getTeacher() !== $user) {
-            return new JsonResponse([
-                'success' => false,
-                'message' => 'Accès non autorisé'
-            ], 403);
         }
 
         $students = $course->getStudents();
@@ -209,12 +200,19 @@ class EnrollmentController extends AbstractController
             ];
         }
 
+        $teacher = $course->getTeacher();
+
         return new JsonResponse([
             'success' => true,
             'course' => [
                 'id' => $course->getId(),
                 'title' => $course->getTitle(),
-                'code' => $course->getCode()
+                'code' => $course->getCode(),
+                'teacher' => [
+                    'id' => $teacher->getId(),
+                    'name' => $teacher->getName(),
+                    'email' => $teacher->getEmail()
+                ]
             ],
             'students' => $studentsData,
             'totalStudents' => count($studentsData)
