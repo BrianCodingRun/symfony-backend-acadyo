@@ -27,3 +27,6 @@ services:
                   event: lexik_jwt_authentication.on_authentication_success,
                   method: onAuthenticationSuccessResponse,
               }
+    App\Service\CloudinaryService:
+        autowire: true
+        autoconfigure: true

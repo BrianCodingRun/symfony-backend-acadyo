@@ -3,10 +3,10 @@
 namespace App\Controller;
 
 use App\Document\Assignment;
-use App\Document\Submission;
+use App\Document\DutyRendered;
 use App\Document\User;
+use App\Service\CloudinaryService;
 use Doctrine\ODM\MongoDB\DocumentManager;
-use PhpParser\Node\Stmt\TryCatch;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -17,19 +17,20 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
 
 #[Route("/api")]
-final class SubmissionController extends AbstractController
+final class DutyRenderedController extends AbstractController
 {
     public function __construct(
         private DocumentManager $documentManager,
         private SluggerInterface $slugger,
-        private ValidatorInterface $validator
+        private ValidatorInterface $validator,
+        private CloudinaryService $cloudinaryService
     ) {
     }
 
-    #[Route('/submissions', name: 'create_submission', methods: ['POST'])]
+    #[Route('/dutyRendered', name: 'create_dutyRendered', methods: ['POST'])]
     public function create(Request $request): JsonResponse
     {
-        $submission = new Submission();
+        $dutyRendered = new DutyRendered();
 
         // Get data
         $studentID = $request->request->get('student');
@@ -46,7 +47,7 @@ final class SubmissionController extends AbstractController
             }
             $user = $this->documentManager->getRepository(User::class)->find($studentID);
             if ($user) {
-                $submission->setStudent($user);
+                $dutyRendered->setStudent($user);
             } else {
                 return $this->json(['error' => 'Etudiant introuvable'], Response::HTTP_BAD_REQUEST);
             }
@@ -60,7 +61,7 @@ final class SubmissionController extends AbstractController
             }
             $assignment = $this->documentManager->getRepository(Assignment::class)->find($assignmentID);
             if ($assignment) {
-                $submission->setAssignment($assignment);
+                $dutyRendered->setAssignment($assignment);
             } else {
                 return $this->json(['error' => 'Le devoir est introuvable'], Response::HTTP_BAD_REQUEST);
             }
@@ -69,28 +70,34 @@ final class SubmissionController extends AbstractController
         }
 
         if ($file) {
-            $fileName = $this->handleFileUpload($file);
-            if (!$fileName) {
-                return $this->json(['error' => 'Erreur lors de l\'upload du fichier'], Response::HTTP_BAD_REQUEST);
+            $result = $this->cloudinaryService->uploadFile($file->getPathname(), [
+                'folder' => 'acadyo/DutyRendered',
+                'resource_type' => 'auto',
+            ]);
+
+            if (!$result || !isset($result['secure_url'])) {
+                return $this->json(['error' => 'Erreur lors de l\'upload sur Cloudinary'], Response::HTTP_BAD_REQUEST);
             }
-            $submission->setFilePath($fileName);
+
+            $dutyRendered->setFilePath($result['secure_url']);
+            $dutyRendered->setFilePublicId($result['public_id']);
         }
 
         if ($comment) {
-            $submission->setComment($comment);
+            $dutyRendered->setComment($comment);
         }
         if ($grade) {
-            $submission->setGrade($grade);
+            $dutyRendered->setGrade($grade);
         }
 
         if (!$submittedAtString) {
             return $this->json(['error' => 'La date de soumission du devoir est obligatoire'], Response::HTTP_BAD_REQUEST);
         }
         $submittedAt = new \DateTimeImmutable($submittedAtString);
-        $submission->setSubmittedAt($submittedAt);
+        $dutyRendered->setSubmittedAt($submittedAt);
 
         // Validation avec Symfony Validator
-        $errors = $this->validator->validate($submission);
+        $errors = $this->validator->validate($dutyRendered);
         if (count($errors) > 0) {
             $errorMessages = [];
             foreach ($errors as $error) {
@@ -100,28 +107,27 @@ final class SubmissionController extends AbstractController
         }
 
         // Persister la soumission
-        $this->documentManager->persist($submission);
+        $this->documentManager->persist($dutyRendered);
         $this->documentManager->flush();
 
         return $this->json([
             'message' => 'Devoir rendu avec succès!',
-            '@context' => '/api/contexts/Submissions',
-            '@id' => '/api/submissions/' . $submission->getId(),
+            '@id' => '/api/dutysRendered/' . $dutyRendered->getId(),
             '@type' => 'https://schema.org/Book',
-            'id' => $submission->getId(),
-            'filePath' => $submission->getFilePath(),
-            'assignment' => $submission->getAssignment() ? '/api/assignments/' . $submission->getAssignment()->getId() : null,
-            'createdAt' => $submission->getCreatedAt()?->format('c'),
-            'updatedAt' => $submission->getUpdatedAt()?->format('c'),
+            'id' => $dutyRendered->getId(),
+            'filePath' => $dutyRendered->getFilePath(),
+            'assignment' => $dutyRendered->getAssignment() ? '/api/assignments/' . $dutyRendered->getAssignment()->getId() : null,
+            'createdAt' => $dutyRendered->getCreatedAt()?->format('c'),
+            'updatedAt' => $dutyRendered->getUpdatedAt()?->format('c'),
         ], Response::HTTP_CREATED);
     }
 
-    #[Route("/submissions/{id}", name: 'update submission', methods: ['POST'])]
+    #[Route("/dutyRendered/{id}", name: 'update dutyRendered', methods: ['POST'])]
     public function update(string $id, Request $request): JsonResponse
     {
         try {
-            $submission = $this->documentManager->getRepository(Submission::class)->find($id);
-            if (!$submission) {
+            $dutyRendered = $this->documentManager->getRepository(DutyRendered::class)->find($id);
+            if (!$dutyRendered) {
                 return $this->json(['error' => 'Aucun devoir n\'a encore été soumis !'], Response::HTTP_NOT_FOUND);
             }
 
@@ -143,7 +149,7 @@ final class SubmissionController extends AbstractController
                     }
                     $user = $this->documentManager->getRepository(User::class)->find($studentID);
                     if ($user) {
-                        $submission->setStudent($user);
+                        $dutyRendered->setStudent($user);
                     } else {
                         return $this->json(['error' => 'Etudiant introuvable'], Response::HTTP_BAD_REQUEST);
                     }
@@ -159,7 +165,7 @@ final class SubmissionController extends AbstractController
                     }
                     $assignment = $this->documentManager->getRepository(Assignment::class)->find($assignmentID);
                     if ($assignment) {
-                        $submission->setAssignment($assignment);
+                        $dutyRendered->setAssignment($assignment);
                     } else {
                         return $this->json(['error' => 'Le devoir est introuvable'], Response::HTTP_BAD_REQUEST);
                     }
@@ -168,37 +174,40 @@ final class SubmissionController extends AbstractController
 
             // Gestion du fichier
             if ($file) {
-                // Supprimer l'ancien fichier si il existe
-                if ($submission->getFilePath()) {
-                    $oldFilePath = $this->getParameter('kernel.project_dir') . '/public/uploads/submissions/' . $submission->getFilePath();
-                    if (file_exists($oldFilePath)) {
-                        unlink($oldFilePath);
-                    }
+                // Supprimer ancien fichier Cloudinary
+                if ($dutyRendered->getFilePublicId()) {
+                    $this->cloudinaryService->deleteFile($dutyRendered->getFilePublicId());
                 }
 
-                $fileName = $this->handleFileUpload($file);
-                if (!$fileName) {
-                    return $this->json(['error' => 'Erreur lors de l\'upload du fichier'], Response::HTTP_BAD_REQUEST);
+                $result = $this->cloudinaryService->uploadFile($file->getPathname(), [
+                    'folder' => 'acadyo/dutyRendered',
+                    'resource_type' => 'auto',
+                ]);
+
+                if (!$result || !isset($result['secure_url'])) {
+                    return $this->json(['error' => 'Erreur lors de l\'upload sur Cloudinary'], Response::HTTP_BAD_REQUEST);
                 }
-                $submission->setFilePath($fileName);
+
+                $dutyRendered->setFilePath($result['secure_url']);
+                $dutyRendered->setFilePublicId($result['public_id']);
             }
 
             if ($comment !== null) {
-                $submission->setComment($comment);
+                $dutyRendered->setComment($comment);
             }
 
             if ($grade !== null) {
-                $submission->setGrade($grade);
+                $dutyRendered->setGrade($grade);
             }
 
             if (!$submittedAtString) {
                 return $this->json(['error' => 'La date de soumission du devoir est obligatoire'], Response::HTTP_BAD_REQUEST);
             }
             $submittedAt = new \DateTimeImmutable($submittedAtString);
-            $submission->setSubmittedAt($submittedAt);
+            $dutyRendered->setSubmittedAt($submittedAt);
 
             // Validation de l'entité
-            $errors = $this->validator->validate($submission);
+            $errors = $this->validator->validate($dutyRendered);
             if (count($errors) > 0) {
                 $errorMessages = [];
                 foreach ($errors as $error) {
@@ -211,54 +220,16 @@ final class SubmissionController extends AbstractController
 
             return $this->json([
                 'message' => 'Rendu de devoir mise à jour avec succès!',
-                '@context' => '/api/contexts/Submissions',
-                '@id' => '/api/submissions/' . $submission->getId(),
+                '@id' => '/api/dutysRendered/' . $dutyRendered->getId(),
                 '@type' => 'https://schema.org/Book',
-                'id' => $submission->getId(),
-                'filePath' => $submission->getFilePath(),
-                'assignment' => $submission->getAssignment() ? '/api/assignments/' . $submission->getAssignment()->getId() : null,
-                'createdAt' => $submission->getCreatedAt()?->format('c'),
-                'updatedAt' => $submission->getUpdatedAt()?->format('c'),
+                'id' => $dutyRendered->getId(),
+                'filePath' => $dutyRendered->getFilePath(),
+                'assignment' => $dutyRendered->getAssignment() ? '/api/assignments/' . $dutyRendered->getAssignment()->getId() : null,
+                'createdAt' => $dutyRendered->getCreatedAt()?->format('c'),
+                'updatedAt' => $dutyRendered->getUpdatedAt()?->format('c'),
             ]);
         } catch (\Exception $e) {
             return $this->json(['error' => 'Erreur interne du serveur'], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
-    }
-
-    private function handleFileUpload($file): ?string
-    {
-        // Vérifications de sécurité
-        $allowedMimeTypes = [
-            'application/pdf',
-            'application/msword',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'text/plain',
-            'image/jpeg',
-            'image/png',
-            'image/gif'
-        ];
-
-        if (!in_array($file->getMimeType(), $allowedMimeTypes)) {
-            return null;
-        }
-
-        // Limite de taille (10MB)
-        if ($file->getSize() > 10485760) {
-            return null;
-        }
-
-        $originalFilename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-        $safeFilename = $this->slugger->slug($originalFilename);
-        $fileName = $safeFilename . '-' . uniqid() . '.' . $file->guessExtension();
-
-        try {
-            $file->move(
-                $this->getParameter('kernel.project_dir') . '/public/uploads/submissions',
-                $fileName
-            );
-            return $fileName;
-        } catch (FileException $e) {
-            return null;
         }
     }
 }

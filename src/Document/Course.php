@@ -6,69 +6,56 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
-use ApiPlatform\Metadata\Post;
-use ApiPlatform\Metadata\Put;
-use App\Controller\CourseController;
 use App\Repository\CourseRepository;
-use Doctrine\Common\Collections\ArrayCollection;
-use Doctrine\Common\Collections\Collection;
 use Doctrine\ODM\MongoDB\Mapping\Annotations as ODM;
+use Symfony\Component\Serializer\Annotation\Groups;
 
 #[ODM\Document(repositoryClass: CourseRepository::class)]
 #[ODM\HasLifecycleCallbacks]
-#[ApiResource(operations: [
-    new Get(),
-    new GetCollection(),
-    new Post(
-        security: "is_granted('ROLE_TEACHER')",
-        name: 'create_course',
-        controller: CourseController::class
-    ),
-    new Put(
-        security: "is_granted('ROLE_TEACHER')",
-        name: 'update_course',
-        controller: CourseController::class
-    ),
-    new Delete(security: "is_granted('ROLE_TEACHER')")
-])]
+#[ApiResource(
+    types: ['https://schema.org/Book'],
+    operations: [
+        new Get(
+            normalizationContext: ['groups' => ['course:read']]
+        ),
+        new GetCollection(
+            normalizationContext: ['groups' => ['course:read']]
+        ),
+        new Delete()
+    ]
+)]
 class Course
 {
     #[ODM\Id]
+    #[Groups(['course:read'])]
     private ?string $id = null;
 
     #[ODM\Field]
+    #[Groups(['course:read'])]
     private ?string $title = null;
 
     #[ODM\Field(nullable: true)]
-    private ?string $description = null;
+    #[Groups(['course:read'])]
+    private ?string $content = null;
+
+    #[ODM\Field(nullable: true)]
+    #[Groups(['course:read'])]
+    public ?string $filePath = null;
+
+    /** @ODM\Field(type="string", nullable=true) */
+    private ?string $filePublicId = null;
+
+    #[ODM\ReferenceOne(targetDocument: Classroom::class, inversedBy: 'courses')]
+    #[Groups(['course:read'])]
+    private ?Classroom $classroom = null;
 
     #[ODM\Field]
-    private ?string $code = null;
-
-    #[ODM\ReferenceOne(targetDocument: User::class, inversedBy: 'courses')]
-    private ?User $teacher = null;
-
-    #[ODM\ReferenceMany(targetDocument: User::class, storeAs: "id")]
-    private Collection $students;
-
-    #[ODM\Field]
+    #[Groups(['course:read'])]
     private ?\DateTimeImmutable $createdAt = null;
 
     #[ODM\Field]
+    #[Groups(['course:read'])]
     private ?\DateTimeImmutable $updatedAt = null;
-
-    #[ODM\ReferenceMany(targetDocument: Lesson::class, mappedBy: 'course')]
-    private Collection $lessons;
-
-    #[ODM\ReferenceMany(targetDocument: Assignment::class, mappedBy: 'course')]
-    private Collection $assignments;
-
-    public function __construct()
-    {
-        $this->lessons = new ArrayCollection();
-        $this->assignments = new ArrayCollection();
-        $this->students = new ArrayCollection();
-    }
 
     public function getId(): ?string
     {
@@ -80,84 +67,54 @@ class Course
         return $this->title;
     }
 
-    public function setTitle(string $title): static
+    public function setTitle(?string $title): static
     {
         $this->title = $title;
-
         return $this;
     }
 
-    public function getDescription(): ?string
+    public function getContent(): ?string
     {
-        return $this->description;
+        return $this->content;
     }
 
-    public function setDescription(?string $description): static
+    public function setContent(?string $content): static
     {
-        $this->description = $description;
-
+        $this->content = $content;
         return $this;
     }
 
-    public function getCode(): ?string
+    public function getFilePath(): ?string
     {
-        return $this->code;
+        return $this->filePath;
     }
 
-    public function setCode(string $code): static
+    public function setFilePath(?string $filePath): static
     {
-        $this->code = $code;
-
+        $this->filePath = $filePath;
         return $this;
     }
 
-    public function getTeacher(): ?User
+    public function getClassroom(): ?Classroom
     {
-        return $this->teacher;
+        return $this->classroom;
     }
 
-    public function setTeacher(?User $teacher): static
+    public function setClassroom(?Classroom $classroom): static
     {
-        $this->teacher = $teacher;
-
+        $this->classroom = $classroom;
         return $this;
     }
 
-    public function getStudents(): Collection
+    public function getFilePublicId(): ?string
     {
-        return $this->students;
+        return $this->filePublicId;
     }
 
-    public function addStudent(User $student): static
+    public function setFilePublicId(?string $filePublicId): self
     {
-        if (!$this->students->contains($student)) {
-            $this->students->add($student);
-        }
+        $this->filePublicId = $filePublicId;
         return $this;
-    }
-
-    public function removeStudent(User $student): static
-    {
-        $this->students->removeElement($student);
-        return $this;
-    }
-
-    public function hasStudent(User $student): bool
-    {
-        return $this->students->contains($student);
-    }
-
-    public function getStudentsCount(): int
-    {
-        return $this->students->count();
-    }
-
-    // Pour l'API - retourne un array d'IDs des étudiants
-    public function getStudentIds(): array
-    {
-        return $this->students->map(function (User $student) {
-            return $student->getId();
-        })->toArray();
     }
 
     public function getCreatedAt(): ?\DateTimeImmutable
@@ -168,7 +125,6 @@ class Course
     public function setCreatedAt(\DateTimeImmutable $createdAt): static
     {
         $this->createdAt = $createdAt;
-
         return $this;
     }
 
@@ -180,67 +136,6 @@ class Course
     public function setUpdatedAt(\DateTimeImmutable $updatedAt): static
     {
         $this->updatedAt = $updatedAt;
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, Lesson>
-     */
-    public function getLessons(): Collection
-    {
-        return $this->lessons;
-    }
-
-    public function addLesson(Lesson $lesson): static
-    {
-        if (!$this->lessons->contains($lesson)) {
-            $this->lessons->add($lesson);
-            $lesson->setCourse($this);
-        }
-
-        return $this;
-    }
-
-    public function removeLesson(Lesson $lesson): static
-    {
-        if ($this->lessons->removeElement($lesson)) {
-            // set the owning side to null (unless already changed)
-            if ($lesson->getCourse() === $this) {
-                $lesson->setCourse(null);
-            }
-        }
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, Assignment>
-     */
-    public function getAssignments(): Collection
-    {
-        return $this->assignments;
-    }
-
-    public function addAssignment(Assignment $assignment): static
-    {
-        if (!$this->assignments->contains($assignment)) {
-            $this->assignments->add($assignment);
-            $assignment->setCourse($this);
-        }
-
-        return $this;
-    }
-
-    public function removeAssignment(Assignment $assignment): static
-    {
-        if ($this->assignments->removeElement($assignment)) {
-            // set the owning side to null (unless already changed)
-            if ($assignment->getCourse() === $this) {
-                $assignment->setCourse(null);
-            }
-        }
-
         return $this;
     }
 

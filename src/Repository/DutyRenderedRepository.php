@@ -2,29 +2,29 @@
 
 namespace App\Repository;
 
-use App\Document\Submission;
+use App\Document\DutyRendered;
 use Doctrine\ODM\MongoDB\DocumentManager;
 use Doctrine\ODM\MongoDB\Repository\DocumentRepository;
 
 /**
- * @extends DocumentRepository<Submission>
+ * @extends DocumentRepository<DutyRendered>
  *
- * @method Submission|null find($id, $lockMode = null, $lockVersion = null)
- * @method Submission|null findOneBy(array $criteria, array $orderBy = null)
- * @method Submission[]    findAll()
- * @method Submission[]    findBy(array $criteria, array $orderBy = null, $limit = null, $offset = null)
+ * @method DutyRendered|null find($id, $lockMode = null, $lockVersion = null)
+ * @method DutyRendered|null findOneBy(array $criteria, array $orderBy = null)
+ * @method DutyRendered[]    findAll()
+ * @method DutyRendered[]    findBy(array $criteria, array $orderBy = null, $limit = null, $offset = null)
  */
-class SubmissionRepository extends DocumentRepository
+class DutyRenderedRepository extends DocumentRepository
 {
     public function __construct(DocumentManager $dm)
     {
         $uow = $dm->getUnitOfWork();
-        $classMetaData = $dm->getClassMetadata(Submission::class);
+        $classMetaData = $dm->getClassMetadata(DutyRendered::class);
         parent::__construct($dm, $uow, $classMetaData);
     }
 
     //    /**
-    //     * @return Submission[] Returns an array of Submission objects
+    //     * @return DutyRendered[] Returns an array of DutyRendered objects
     //     */
     //    public function findByExampleField($value)
     //    {

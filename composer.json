@@ -10,6 +10,7 @@
         "api-platform/doctrine-odm": "^4.1",
         "api-platform/doctrine-orm": "^4.1",
         "api-platform/symfony": "^4.1",
+        "cloudinary/cloudinary_php": "^3.1",
         "constantable/odm-document-maker": "^1.0",
         "doctrine/dbal": "^3",
         "doctrine/doctrine-bundle": "^2.15",
@@ -26,6 +27,8 @@
         "symfony/expression-language": "7.3.*",
         "symfony/flex": "^2",
         "symfony/framework-bundle": "7.3.*",
+        "symfony/google-mailer": "7.3.*",
+        "symfony/mailer": "7.3.*",
         "symfony/monolog-bundle": "^3.10",
         "symfony/password-hasher": "7.3.*",
         "symfony/property-access": "7.3.*",
@@ -35,8 +38,7 @@
         "symfony/serializer": "7.3.*",
         "symfony/twig-bundle": "7.3.*",
         "symfony/validator": "7.3.*",
-        "symfony/yaml": "7.3.*",
-        "vich/uploader-bundle": "^2.7"
+        "symfony/yaml": "7.3.*"
     },
     "config": {
         "allow-plugins": {

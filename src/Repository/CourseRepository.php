@@ -24,22 +24,22 @@ class CourseRepository extends DocumentRepository
     }
 
     //    /**
-    //     * @return Course[] Returns an array of Course objects
-    //     */
-    //    public function findByExampleField($value)
-    //    {
-    //        return $this->createQueryBuilder()
-    //            ->addAnd(['exampleField' => ['$regex' => $value, '$options' => 'i']])
-    //            ->sort('exampleField', 'ASC')
-    //            ->limit(10)
-    //            ->getQuery()
-    //            ->execute()
-    //        ;
-    //    }
+//     * @return Course[] Returns an array of Course objects
+//     */
+//    public function findByExampleField($value)
+//    {
+//        return $this->createQueryBuilder()
+//            ->addAnd(['exampleField' => ['$regex' => $value, '$options' => 'i']])
+//            ->sort('exampleField', 'ASC')
+//            ->limit(10)
+//            ->getQuery()
+//            ->execute()
+//        ;
+//    }
 
     //    public function count(): int
-    //    {
-    //        $qb = $this->createQueryBuilder();
-    //        return $qb->count()->getQuery()->execute();
-    //    }
+//    {
+//        $qb = $this->createQueryBuilder();
+//        return $qb->count()->getQuery()->execute();
+//    }
 }

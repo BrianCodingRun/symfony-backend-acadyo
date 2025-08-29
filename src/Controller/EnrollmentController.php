@@ -2,40 +2,46 @@
 
 namespace App\Controller;
 
-use App\Document\Course;
+use App\Document\Classroom;
 use App\Document\User;
 use Doctrine\ODM\MongoDB\DocumentManager;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\CurrentUser;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/api/enrollment')]
 class EnrollmentController extends AbstractController
 {
 
-    /**
-     * @return User
-     */
-    private function getCurrentUser(): User
-    {
-        /** @var User $user */
-        $user = $this->getUser();
-        return $user;
-    }
-
     public function __construct(
         private DocumentManager $dm
     ) {
     }
 
+    #[Route('/debug-user', name: 'api_debug_user', methods: ['GET'])]
+    public function debugUser(#[CurrentUser] ?User $user): JsonResponse
+    {
+        if (!$user) {
+            return new JsonResponse(['error' => 'Aucun utilisateur détecté'], 401);
+        }
+
+        return new JsonResponse([
+            'id' => $user->getId(),
+            'email' => $user->getEmail(),
+            'roles' => $user->getRoles(),
+        ]);
+    }
+
+
     /**
      * Rejoindre un cours avec un code
      */
-    #[Route('/join', name: 'api_join_course', methods: ['POST'])]
+    #[Route('/join', name: 'api_join_classroom', methods: ['POST'])]
     #[IsGranted('ROLE_STUDENT')]
-    public function joinCourse(Request $request): JsonResponse
+    public function joinClassroom(Request $request, #[CurrentUser] ?User $user): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
         $code = $data['code'] ?? null;
@@ -43,25 +49,25 @@ class EnrollmentController extends AbstractController
         if (!$code) {
             return new JsonResponse([
                 'success' => false,
-                'message' => 'Le code du cours est requis'
+                'message' => 'Le code du classroom est requis'
             ], 400);
         }
 
         $code = strtoupper(trim($code));
-        $user = $this->getCurrentUser();
+        // $user = $this->getCurrentUser();
 
-        // Rechercher le cours par code
-        $course = $this->dm->getRepository(Course::class)->findOneBy(['code' => $code]);
+        // Rechercher le classroom par code
+        $classroom = $this->dm->getRepository(Classroom::class)->findOneBy(['code' => $code]);
 
-        if (!$course) {
+        if (!$classroom) {
             return new JsonResponse([
                 'success' => false,
-                'message' => 'Code invalide ou cours inexistant'
+                'message' => 'Code invalide ou classroom inexistant'
             ], 404);
         }
 
         // Vérifier si l'étudiant n'est pas déjà inscrit
-        if ($course->hasStudent($user)) {
+        if ($classroom->hasStudent($user)) {
             return new JsonResponse([
                 'success' => false,
                 'message' => 'Vous êtes déjà inscrit à ce cours'
@@ -69,7 +75,7 @@ class EnrollmentController extends AbstractController
         }
 
         // Vérifier que l'utilisateur n'est pas le professeur du cours
-        if ($course->getTeacher() === $user) {
+        if ($classroom->getTeacher() === $user) {
             return new JsonResponse([
                 'success' => false,
                 'message' => 'Vous ne pouvez pas vous inscrire à votre propre cours'
@@ -77,26 +83,26 @@ class EnrollmentController extends AbstractController
         }
 
         // Inscription
-        $course->addStudent($user);
-        $user->addEnrolledCourse($course);
+        $classroom->addStudent($user);
+        $user->addEnrolledClassroom($classroom);
 
         $this->dm->flush();
 
         return new JsonResponse([
             'success' => true,
             'message' => 'Inscription réussie !',
-            'course' => [
-                'id' => $course->getId(),
-                'title' => $course->getTitle(),
-                'description' => $course->getDescription(),
-                'code' => $course->getCode(),
+            'classroom' => [
+                'id' => $classroom->getId(),
+                'title' => $classroom->getTitle(),
+                'description' => $classroom->getDescription(),
+                'code' => $classroom->getCode(),
                 'teacher' => [
-                    'id' => $course->getTeacher()->getId(),
-                    'name' => $course->getTeacher()->getName(),
-                    'email' => $course->getTeacher()->getEmail()
+                    'id' => $classroom->getTeacher()->getId(),
+                    'name' => $classroom->getTeacher()->getName(),
+                    'email' => $classroom->getTeacher()->getEmail()
                 ],
-                'studentsCount' => $course->getStudentsCount(),
-                'createdAt' => $course->getCreatedAt()->format('Y-m-d H:i:s')
+                'studentsCount' => $classroom->getStudentsCount(),
+                'createdAt' => $classroom->getCreatedAt()->format('Y-m-d H:i:s')
             ]
         ]);
     }
@@ -104,29 +110,28 @@ class EnrollmentController extends AbstractController
     /**
      * Quitter un cours
      */
-    #[Route('/leave/{courseId}', name: 'api_leave_course', methods: ['DELETE'])]
+    #[Route('/leave/{classroomId}', name: 'api_leave_classroom', methods: ['DELETE'])]
     #[IsGranted('ROLE_STUDENT')]
-    public function leaveCourse(string $courseId): JsonResponse
+    public function leaveClassroom(string $classroomId, #[CurrentUser] ?User $user): JsonResponse
     {
-        $user = $this->getCurrentUser();
-        $course = $this->dm->getRepository(Course::class)->find($courseId);
+        $classroom = $this->dm->getRepository(Classroom::class)->find($classroomId);
 
-        if (!$course) {
+        if (!$classroom) {
             return new JsonResponse([
                 'success' => false,
                 'message' => 'Cours non trouvé'
             ], 404);
         }
 
-        if (!$course->hasStudent($user)) {
+        if (!$classroom->hasStudent($user)) {
             return new JsonResponse([
                 'success' => false,
                 'message' => 'Vous n\'êtes pas inscrit à ce cours'
             ], 400);
         }
 
-        $course->removeStudent($user);
-        $user->removeEnrolledCourse($course);
+        $classroom->removeStudent($user);
+        $user->removeEnrolledClassroom($classroom);
 
         $this->dm->flush();
 
@@ -139,56 +144,54 @@ class EnrollmentController extends AbstractController
     /**
      * Obtenir les cours de l'étudiant connecté
      */
-    #[Route('/my-courses', name: 'api_my_enrolled_courses', methods: ['GET'])]
+    #[Route('/my-classrooms', name: 'api_my_enrolled_classroom', methods: ['GET'])]
     #[IsGranted('ROLE_STUDENT')]
-    public function getMyEnrolledCourses(): JsonResponse
+    public function getMyEnrolledClassrooms(#[CurrentUser] ?User $user): JsonResponse
     {
-        $user = $this->getCurrentUser();
-        $courses = $user->getEnrolledCourses();
+        $classrooms = $user->getEnrolledClassrooms();
 
-        $coursesData = [];
-        foreach ($courses as $course) {
-            $coursesData[] = [
-                'id' => $course->getId(),
-                'title' => $course->getTitle(),
-                'description' => $course->getDescription(),
-                'code' => $course->getCode(),
+        $classroomsData = [];
+        foreach ($classrooms as $classroom) {
+            $classroomsData[] = [
+                'id' => $classroom->getId(),
+                'title' => $classroom->getTitle(),
+                'description' => $classroom->getDescription(),
+                'code' => $classroom->getCode(),
                 'teacher' => [
-                    'id' => $course->getTeacher()->getId(),
-                    'name' => $course->getTeacher()->getName(),
-                    'email' => $course->getTeacher()->getEmail()
+                    'id' => $classroom->getTeacher()->getId(),
+                    'name' => $classroom->getTeacher()->getName(),
+                    'email' => $classroom->getTeacher()->getEmail()
                 ],
-                'studentsCount' => $course->getStudentsCount(),
-                'lessonsCount' => $course->getLessons()->count(),
-                'assignmentsCount' => $course->getAssignments()->count(),
-                'createdAt' => $course->getCreatedAt()->format('Y-m-d H:i:s')
+                'studentsCount' => $classroom->getStudentsCount(),
+                'coursesCount' => $classroom->getCourses()->count(),
+                'assignmentsCount' => $classroom->getAssignments()->count(),
+                'createdAt' => $classroom->getCreatedAt()->format('Y-m-d H:i:s')
             ];
         }
 
         return new JsonResponse([
             'success' => true,
-            'courses' => $coursesData,
-            'totalCourses' => count($coursesData)
+            'classrooms' => $classroomsData,
+            'totalClassrooms' => count($classroomsData)
         ]);
     }
 
     /**
      * Obtenir les étudiants d'un cours
      */
-    #[Route('/course/{courseId}/students', name: 'api_course_students', methods: ['GET'])]
-    public function getCourseStudents(string $courseId): JsonResponse
+    #[Route('/classroom/{classroomId}/students', name: 'api_classroom_students', methods: ['GET'])]
+    public function getClassroomStudents(string $classroomId): JsonResponse
     {
-        $user = $this->getUser();
-        $course = $this->dm->getRepository(Course::class)->find($courseId);
+        $classroom = $this->dm->getRepository(Classroom::class)->find($classroomId);
 
-        if (!$course) {
+        if (!$classroom) {
             return new JsonResponse([
                 'success' => false,
-                'message' => 'Cours non trouvé'
+                'message' => 'Classroom non trouvé'
             ], 404);
         }
 
-        $students = $course->getStudents();
+        $students = $classroom->getStudents();
         $studentsData = [];
 
         foreach ($students as $student) {
@@ -200,14 +203,14 @@ class EnrollmentController extends AbstractController
             ];
         }
 
-        $teacher = $course->getTeacher();
+        $teacher = $classroom->getTeacher();
 
         return new JsonResponse([
             'success' => true,
-            'course' => [
-                'id' => $course->getId(),
-                'title' => $course->getTitle(),
-                'code' => $course->getCode(),
+            'classroom' => [
+                'id' => $classroom->getId(),
+                'title' => $classroom->getTitle(),
+                'code' => $classroom->getCode(),
                 'teacher' => [
                     'id' => $teacher->getId(),
                     'name' => $teacher->getName(),
@@ -220,46 +223,45 @@ class EnrollmentController extends AbstractController
     }
 
     /**
-     * Retirer un étudiant d'un cours (pour le professeur)
+     * Retirer un étudiant d'un classroom (pour le professeur)
      */
-    #[Route('/course/{courseId}/remove-student/{studentId}', name: 'api_remove_student', methods: ['DELETE'])]
+    #[Route('/classroom/{classroomId}/remove-student/{studentId}', name: 'api_remove_student', methods: ['DELETE'])]
     #[IsGranted('ROLE_TEACHER')]
-    public function removeStudentFromCourse(string $courseId, string $studentId): JsonResponse
+    public function removeStudentFromClassroom(string $classroomId, string $studentId, #[CurrentUser] ?User $user): JsonResponse
     {
-        $user = $this->getUser();
-        $course = $this->dm->getRepository(Course::class)->find($courseId);
+        $classroom = $this->dm->getRepository(Classroom::class)->find($classroomId);
         $student = $this->dm->getRepository(User::class)->find($studentId);
 
-        if (!$course || !$student) {
+        if (!$classroom || !$student) {
             return new JsonResponse([
                 'success' => false,
-                'message' => 'Cours ou étudiant non trouvé'
+                'message' => 'Classroom ou étudiant non trouvé.'
             ], 404);
         }
 
-        // Vérifier que l'utilisateur est bien le professeur de ce cours
-        if ($course->getTeacher() !== $user) {
+        // Vérifier que l'utilisateur est bien le professeur de ce classroom
+        if ($classroom->getTeacher() !== $user) {
             return new JsonResponse([
                 'success' => false,
                 'message' => 'Accès non autorisé'
             ], 403);
         }
 
-        if (!$course->hasStudent($student)) {
+        if (!$classroom->hasStudent($student)) {
             return new JsonResponse([
                 'success' => false,
-                'message' => 'Cet étudiant n\'est pas inscrit à ce cours'
+                'message' => 'Cet étudiant n\'est pas inscrit dans ce classroom.'
             ], 400);
         }
 
-        $course->removeStudent($student);
-        $student->removeEnrolledCourse($course);
+        $classroom->removeStudent($student);
+        $student->removeEnrolledClassroom($classroom);
 
         $this->dm->flush();
 
         return new JsonResponse([
             'success' => true,
-            'message' => 'Étudiant retiré du cours avec succès'
+            'message' => 'Étudiant retiré du classroom avec succès.'
         ]);
     }
 }

@@ -27,7 +27,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ODM\Field]
     private ?string $password = null;
 
-    // CHANGEMENT : Support des rôles multiples pour Symfony Security
+    #[ODM\Field(type: "string", nullable: true)]
+    private ?string $resetToken = null;
+
+    #[ODM\Field(type: "date", nullable: true)]
+    private ?\DateTime $resetTokenExpiresAt = null;
+
     #[ODM\Field(type: "collection")]
     private array $roles = [];
 
@@ -38,25 +43,25 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?\DateTimeImmutable $updatedAt = null;
 
     // Cours créés par ce professeur
-    #[ODM\ReferenceMany(targetDocument: Course::class, nullable: true, mappedBy: 'teacher')]
-    private Collection $courses;
+    #[ODM\ReferenceMany(targetDocument: Classroom::class, nullable: true, mappedBy: 'teacher')]
+    private Collection $classrooms;
 
     // AJOUT : Cours où cet utilisateur est étudiant
-    #[ODM\ReferenceMany(targetDocument: Course::class, storeAs: "id")]
-    private Collection $enrolledCourses;
+    #[ODM\ReferenceMany(targetDocument: Classroom::class, storeAs: "id")]
+    private Collection $enrolledClassrooms;
 
     #[ODM\ReferenceMany(targetDocument: Assignment::class, mappedBy: 'assignedTo')]
     private Collection $assignments;
 
-    #[ODM\ReferenceMany(targetDocument: Submission::class, nullable: true, mappedBy: 'student')]
-    private Collection $submissions;
+    #[ODM\ReferenceMany(targetDocument: DutyRendered::class, nullable: true, mappedBy: 'student')]
+    private Collection $dutysRendered;
 
     public function __construct()
     {
-        $this->courses = new ArrayCollection();
-        $this->enrolledCourses = new ArrayCollection(); // AJOUT
-        $this->submissions = new ArrayCollection();
+        $this->enrolledClassrooms = new ArrayCollection(); // AJOUT
+        $this->dutysRendered = new ArrayCollection();
         $this->assignments = new ArrayCollection();
+        $this->classrooms = new ArrayCollection();
     }
 
     public function getId(): ?string
@@ -166,27 +171,27 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     // Cours créés (pour les professeurs)
     /**
-     * @return Collection<int, Course>
+     * @return Collection<int, Classroom>
      */
-    public function getCourses(): Collection
+    public function getClassrooms(): Collection
     {
-        return $this->courses;
+        return $this->classrooms;
     }
 
-    public function addCourse(Course $course): static
+    public function addClassroom(Classroom $classroom): static
     {
-        if (!$this->courses->contains($course)) {
-            $this->courses->add($course);
-            $course->setTeacher($this);
+        if (!$this->classrooms->contains($classroom)) {
+            $this->classrooms->add($classroom);
+            $classroom->setTeacher($this);
         }
         return $this;
     }
 
-    public function removeCourse(Course $course): static
+    public function removeClassroom(Classroom $classroom): static
     {
-        if ($this->courses->removeElement($course)) {
-            if ($course->getTeacher() === $this) {
-                $course->setTeacher(null);
+        if ($this->classrooms->removeElement($classroom)) {
+            if ($classroom->getTeacher() === $this) {
+                $classroom->setTeacher(null);
             }
         }
         return $this;
@@ -194,30 +199,34 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     // AJOUT : Cours où l'utilisateur est inscrit (pour les étudiants)
     /**
-     * @return Collection<int, Course>
+     * @return Collection<int, Classroom>
      */
-    public function getEnrolledCourses(): Collection
+    public function getEnrolledClassrooms(): Collection
     {
-        return $this->enrolledCourses;
+        return $this->enrolledClassrooms;
     }
 
-    public function addEnrolledCourse(Course $course): static
+    public function addEnrolledClassroom(Classroom $classroom): static
     {
-        if (!$this->enrolledCourses->contains($course)) {
-            $this->enrolledCourses->add($course);
+        if (!$this->enrolledClassrooms->contains($classroom)) {
+            $this->enrolledClassrooms->add($classroom);
+            $classroom->addStudent($this); // synchro côté Course
         }
         return $this;
     }
 
-    public function removeEnrolledCourse(Course $course): static
+    public function removeEnrolledClassroom(Classroom $classroom): static
     {
-        $this->enrolledCourses->removeElement($course);
+        if ($this->enrolledClassrooms->removeElement($classroom)) {
+            $classroom->removeStudent($this); // synchro côté Course
+        }
         return $this;
     }
 
-    public function isEnrolledIn(Course $course): bool
+
+    public function isEnrolledIn(Classroom $classroom): bool
     {
-        return $this->enrolledCourses->contains($course);
+        return $this->enrolledClassrooms->contains($classroom);
     }
 
     // Gestion des assignments
@@ -244,29 +253,51 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
-     * @return Collection<int, Submission>
+     * @return Collection<int, DutyRendered>
      */
-    public function getSubmissions(): Collection
+    public function getDutysRendered(): Collection
     {
-        return $this->submissions;
+        return $this->dutysRendered;
     }
 
-    public function addSubmission(Submission $submission): static
+    public function addDutyRendered(DutyRendered $dutyRendered): static
     {
-        if (!$this->submissions->contains($submission)) {
-            $this->submissions->add($submission);
-            $submission->setStudent($this);
+        if (!$this->dutysRendered->contains($dutyRendered)) {
+            $this->dutysRendered->add($dutyRendered);
+            $dutyRendered->setStudent($this);
         }
         return $this;
     }
 
-    public function removeSubmission(Submission $submission): static
+    public function removeDutyRendered(DutyRendered $dutyRendered): static
     {
-        if ($this->submissions->removeElement($submission)) {
-            if ($submission->getStudent() === $this) {
-                $submission->setStudent(null);
+        if ($this->dutysRendered->removeElement($dutyRendered)) {
+            if ($dutyRendered->getStudent() === $this) {
+                $dutyRendered->setStudent(null);
             }
         }
+        return $this;
+    }
+
+    public function getResetToken(): ?string
+    {
+        return $this->resetToken;
+    }
+
+    public function setResetToken(?string $resetToken): self
+    {
+        $this->resetToken = $resetToken;
+        return $this;
+    }
+
+    public function getResetTokenExpiresAt(): ?\DateTime
+    {
+        return $this->resetTokenExpiresAt;
+    }
+
+    public function setResetTokenExpiresAt(?\DateTime $expiresAt): self
+    {
+        $this->resetTokenExpiresAt = $expiresAt;
         return $this;
     }
 

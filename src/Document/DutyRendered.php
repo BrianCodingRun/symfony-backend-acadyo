@@ -6,61 +6,64 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
-use App\Repository\SubmissionRepository;
+use App\Repository\DutyRenderedRepository;
 use Doctrine\ODM\MongoDB\Mapping\Annotations as ODM;
 use Doctrine\ODM\MongoDB\Types\Type;
 use Symfony\Component\Serializer\Annotation\Groups;
 
-#[ODM\Document(repositoryClass: SubmissionRepository::class)]
+#[ODM\Document(repositoryClass: DutyRenderedRepository::class)]
 #[ODM\HasLifecycleCallbacks]
 #[ApiResource(
     types: ['https://schema.org/Book'],
     operations: [
         new Get(
-            normalizationContext: ['groups' => ['submission:read']]
+            normalizationContext: ['groups' => ['dutyRendered:read']]
         ),
         new GetCollection(
-            normalizationContext: ['groups' => ['submission:read']]
+            normalizationContext: ['groups' => ['dutyRendered:read']]
         ),
         new Delete()
     ]
 )]
-class Submission
+class DutyRendered
 {
     #[ODM\Id]
-    #[Groups(['submission:read'])]
+    #[Groups(['dutyRendered:read'])]
     private ?string $id = null;
 
-    #[ODM\ReferenceOne(targetDocument: User::class, inversedBy: 'submissions')]
-    #[Groups(['submission:read'])]
+    #[ODM\ReferenceOne(targetDocument: User::class, inversedBy: 'dutysRendered')]
+    #[Groups(['dutyRendered:read'])]
     private ?User $student = null;
 
-    #[ODM\ReferenceOne(targetDocument: Assignment::class, inversedBy: 'submissions')]
-    #[Groups(['submission:read'])]
+    #[ODM\ReferenceOne(targetDocument: Assignment::class, inversedBy: 'dutysRendered')]
+    #[Groups(['dutyRendered:read'])]
     private ?Assignment $assignment = null;
 
     #[ODM\Field(nullable: true)]
-    #[Groups(['submission:read'])]
+    #[Groups(['dutyRendered:read'])]
     public ?string $filePath = null;
 
+    /** @ODM\Field(type="string", nullable=true) */
+    private ?string $filePublicId = null;
+
     #[ODM\Field(nullable: true)]
-    #[Groups(['submission:read'])]
+    #[Groups(['dutyRendered:read'])]
     private ?string $comment = null;
 
     #[ODM\Field(nullable: true)]
-    #[Groups(['submission:read'])]
+    #[Groups(['dutyRendered:read'])]
     private ?int $grade = null;
 
     #[ODM\Field]
-    #[Groups(['submission:read'])]
+    #[Groups(['dutyRendered:read'])]
     private ?\DateTimeImmutable $submittedAt = null;
 
     #[ODM\Field]
-    #[Groups(['submission:read'])]
+    #[Groups(['dutyRendered:read'])]
     private ?\DateTimeImmutable $createdAt = null;
 
     #[ODM\Field]
-    #[Groups(['submission:read'])]
+    #[Groups(['dutyRendered:read'])]
     private ?\DateTimeImmutable $updatedAt = null;
 
     public function getId(): ?string
@@ -100,6 +103,17 @@ class Submission
     public function setFilePath(?string $filePath): static
     {
         $this->filePath = $filePath;
+        return $this;
+    }
+
+    public function getFilePublicId(): ?string
+    {
+        return $this->filePublicId;
+    }
+
+    public function setFilePublicId(?string $filePublicId): self
+    {
+        $this->filePublicId = $filePublicId;
         return $this;
     }
 

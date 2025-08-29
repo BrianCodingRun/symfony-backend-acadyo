@@ -26,8 +26,8 @@ class Assignment
     #[ODM\Field(type: Type::DATE, nullable: true)]
     private ?\DateTimeInterface $dueDate = null;
 
-    #[ODM\ReferenceOne(targetDocument: Course::class, inversedBy: 'assignments')]
-    private ?Course $course = null;
+    #[ODM\ReferenceOne(targetDocument: Classroom::class, inversedBy: 'assignments')]
+    private ?Classroom $classroom = null;
 
     // CORRECTION: Relation Many-to-Many avec inversedBy au lieu de mappedBy
     #[ODM\ReferenceMany(targetDocument: User::class, inversedBy: 'assignments')]
@@ -39,13 +39,13 @@ class Assignment
     #[ODM\Field]
     private ?\DateTimeImmutable $updatedAt = null;
 
-    #[ODM\ReferenceMany(targetDocument: Submission::class, mappedBy: 'assignment')]
-    private Collection $submissions;
+    #[ODM\ReferenceMany(targetDocument: DutyRendered::class, mappedBy: 'assignment')]
+    private Collection $dutysRendered;
 
     public function __construct()
     {
         $this->assignedTo = new ArrayCollection();
-        $this->submissions = new ArrayCollection();
+        $this->dutysRendered = new ArrayCollection();
     }
 
     public function getId(): ?string
@@ -89,14 +89,14 @@ class Assignment
         return $this;
     }
 
-    public function getCourse(): ?Course
+    public function getClassroom(): ?Classroom
     {
-        return $this->course;
+        return $this->classroom;
     }
 
-    public function setCourse(?Course $course): static
+    public function setClassroom(?Classroom $classroom): static
     {
-        $this->course = $course;
+        $this->classroom = $classroom;
 
         return $this;
     }
@@ -154,29 +154,29 @@ class Assignment
     }
 
     /**
-     * @return Collection<int, Submission>
+     * @return Collection<int, DutyRendered>
      */
-    public function getSubmissions(): Collection
+    public function getDutyRendered(): Collection
     {
-        return $this->submissions;
+        return $this->dutysRendered;
     }
 
-    public function addSubmission(Submission $submission): static
+    public function addDutyRendered(DutyRendered $dutyRendered): static
     {
-        if (!$this->submissions->contains($submission)) {
-            $this->submissions->add($submission);
-            $submission->setAssignment($this);
+        if (!$this->dutysRendered->contains($dutyRendered)) {
+            $this->dutysRendered->add($dutyRendered);
+            $dutyRendered->setAssignment($this);
         }
 
         return $this;
     }
 
-    public function removeSubmission(Submission $submission): static
+    public function removeDutyRendered(DutyRendered $dutyRendered): static
     {
-        if ($this->submissions->removeElement($submission)) {
+        if ($this->dutysRendered->removeElement($dutyRendered)) {
             // set the owning side to null (unless already changed)
-            if ($submission->getAssignment() === $this) {
-                $submission->setAssignment(null);
+            if ($dutyRendered->getAssignment() === $this) {
+                $dutyRendered->setAssignment(null);
             }
         }
 
