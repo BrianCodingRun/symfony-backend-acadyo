@@ -2,8 +2,6 @@
 namespace App\Service;
 
 use Cloudinary\Cloudinary;
-use Cloudinary\Transformation\Resize;
-use Cloudinary\Api\Exception\ApiError;
 
 class CloudinaryService
 {
@@ -27,7 +25,6 @@ class CloudinaryService
   {
     return $this->cloudinary->uploadApi()->upload($filePath, $options)->getArrayCopy();
   }
-
   public function deleteFile(string $publicId): array
   {
     return $this->cloudinary->uploadApi()->destroy($publicId)->getArrayCopy();

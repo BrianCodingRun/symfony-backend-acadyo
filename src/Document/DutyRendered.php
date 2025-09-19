@@ -8,7 +8,6 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use App\Repository\DutyRenderedRepository;
 use Doctrine\ODM\MongoDB\Mapping\Annotations as ODM;
-use Doctrine\ODM\MongoDB\Types\Type;
 use Symfony\Component\Serializer\Annotation\Groups;
 
 #[ODM\Document(repositoryClass: DutyRenderedRepository::class)]

@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Document\Classroom;
+use App\Repository\ClassroomRepository;
 use Doctrine\ODM\MongoDB\DocumentManager;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -16,36 +17,46 @@ final class ClassroomController extends AbstractController
 {
 
     #[Route('/classroom', name: 'create_classroom', methods: ['POST'])]
-    public function create(Request $request, DocumentManager $dm, #[CurrentUser] $user): JsonResponse
+    public function create(Request $request, DocumentManager $dm, #[CurrentUser] $user, ClassroomRepository $classroomRepository): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
 
         // Vérifie que l'utilisateur est connecté et est formateur
-
         if (!$user || !in_array('ROLE_TEACHER', $user->getRoles())) {
             return $this->json(['error' => 'Unauthorized'], 401);
         }
 
-        $course = new Classroom();
-        $course->setTitle($data['title'] ?? 'Untitled');
-        $course->setDescription($data['description'] ?? '');
-        $course->setTeacher($user);
+        if (!isset($data['title'])) {
+            return $this->json(['error' => 'Title is require !'], 400);
+        }
+
+        $existingClassroom = $classroomRepository->findOneBy(['title' => $data['title']]);
+        if ($existingClassroom) {
+            return $this->json(['error' => 'Classroom already existing'], 409);
+        }
+
+        $classroom = new Classroom();
+        $classroom->setTitle($data['title'] ?? 'Untitled');
+        $classroom->setDescription($data['description'] ?? '');
+        $classroom->setTeacher($user);
 
         // 🔐 Génère le code unique
         $code = $this->generateUniqueCode($dm);
-        $course->setCode($code);
+        $classroom->setCode($code);
 
-        $dm->persist($course);
+        $dm->persist($classroom);
         $dm->flush();
 
         return $this->json([
             'message' => 'Classroom créé avec succès',
             'classroom' => [
-                'id' => $course->getId(),
-                'title' => $course->getTitle(),
-                'code' => $course->getCode(),
+                '@id' => '/api/classrooms/' . $classroom->getId(),
+                'id' => $classroom->getId(),
+                'title' => $classroom->getTitle(),
+                'description' => $classroom->getDescription(),
+                'code' => $classroom->getCode(),
             ]
-        ], 200);
+        ], 201);
     }
 
     #[Route('/classrooms/{id}', name: 'update_classroom', methods: ['PUT'])]
@@ -53,13 +64,8 @@ final class ClassroomController extends AbstractController
     {
         $data = json_decode($request->getContent(), true);
 
-        if (!$user || !in_array('teacher', $user->getRoles())) {
+        if (!$user || !in_array('ROLE_TEACHER', $user->getRoles())) {
             return $this->json(['error' => 'Unauthorized'], 401);
-        }
-
-        // Optionnel : vérifier que l'utilisateur est bien le créateur du classroom.
-        if ($classroom->getTeacher()?->getId() !== $user->getId()) {
-            return $this->json(['error' => 'Vous n\'êtes pas le créateur de ce classroom.'], 403);
         }
 
         if (isset($data['title'])) {
@@ -81,7 +87,7 @@ final class ClassroomController extends AbstractController
                 'description' => $classroom->getDescription(),
                 'code' => $classroom->getCode(),
             ]
-        ]);
+        ], 200);
     }
 
     private function generateUniqueCode(DocumentManager $dm, int $length = 6): string

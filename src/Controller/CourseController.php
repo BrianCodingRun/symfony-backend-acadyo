@@ -50,10 +50,10 @@ final class CourseController extends AbstractController
             // Associer au classroom
             if ($classroomId) {
                 if (str_starts_with($classroomId, '/api/classrooms/')) {
-                    $courseId = str_replace('/api/classrooms/', '', $classroomId);
+                    $classroomId = str_replace('/api/classrooms/', '', $classroomId);
                 }
 
-                $classroom = $this->documentManager->getRepository(Classroom::class)->find($courseId);
+                $classroom = $this->documentManager->getRepository(Classroom::class)->find($classroomId);
                 if ($classroom) {
                     $course->setClassroom($classroom);
                 } else {
@@ -199,6 +199,7 @@ final class CourseController extends AbstractController
         }
     }
 
+    // Suppression du fichier de support de cours
     #[Route('/courses/{id}/file', name: 'delete_course_file', methods: ['DELETE'])]
     public function deleteFile(string $id): JsonResponse
     {
@@ -206,15 +207,16 @@ final class CourseController extends AbstractController
             $course = $this->documentManager->getRepository(Course::class)->find($id);
 
             if (!$course) {
-                return $this->json(['error' => 'Leçon introuvable'], Response::HTTP_NOT_FOUND);
+                return $this->json(['error' => 'Cours introuvable'], Response::HTTP_NOT_FOUND);
             }
 
             if ($course->getFilePublicId()) {
                 $this->cloudinaryService->deleteFile($course->getFilePublicId());
-                $course->setFilePath(null);
-                $course->setFilePublicId(null);
-                $this->documentManager->flush();
             }
+
+            $course->setFilePath(null);
+            $course->setFilePublicId(null);
+            $this->documentManager->flush();
 
             return $this->json(['message' => 'Fichier supprimé avec succès']);
 

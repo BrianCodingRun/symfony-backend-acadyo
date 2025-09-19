@@ -9,6 +9,7 @@ use ApiPlatform\Metadata\GetCollection;
 use App\Repository\CourseRepository;
 use Doctrine\ODM\MongoDB\Mapping\Annotations as ODM;
 use Symfony\Component\Serializer\Annotation\Groups;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ODM\Document(repositoryClass: CourseRepository::class)]
 #[ODM\HasLifecycleCallbacks]
@@ -32,6 +33,8 @@ class Course
 
     #[ODM\Field]
     #[Groups(['course:read'])]
+    #[Assert\NotBlank(message: "Le titre est requis")]
+    #[Assert\Length(min: 3, max: 200)]
     private ?string $title = null;
 
     #[ODM\Field(nullable: true)]
