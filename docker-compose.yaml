@@ -1,0 +1,57 @@
+version: "3.8"
+
+services:
+    # Service de l'application Symfony
+    app_acadyo:
+        build:
+            context: .
+            args:
+                APP_ENV: ${APP_ENV}
+        environment:
+            - MONGODB_URL=mongodb://root:rootpassword@db_acadyo:27017/db_acadyo?authSource=admin
+            - APP_ENV=${APP_ENV}
+            - CORS_ALLOW_ORIGIN=http://localhost,http://localhost:5173,http://frontend:5173
+        ports:
+            - "8000:80"
+        depends_on:
+            - db_acadyo
+        networks:
+            - npm-network
+        command: ["sh", "/var/www/html/docker/entrypoint.sh"]
+        volumes:
+            - symfony_var:/var/www/html/var
+
+    # Service MongoDB
+    db_acadyo:
+        image: mongo:8.0
+        environment:
+            MONGO_INITDB_ROOT_USERNAME: root
+            MONGO_INITDB_ROOT_PASSWORD: rootpassword
+            MONGO_INITDB_DATABASE: db_acadyo
+        ports:
+            - "27017:27017"
+        volumes:
+            - mongodb_data:/data/db
+            - ./docker/mongodb/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+        networks:
+            - npm-network
+    mongo-express:
+        image: mongo-express
+        environment:
+            ME_CONFIG_MONGODB_ADMINUSERNAME: root
+            ME_CONFIG_MONGODB_ADMINPASSWORD: rootpassword
+            ME_CONFIG_MONGODB_URL: mongodb://root:rootpassword@db_acadyo:27017/
+            ME_CONFIG_BASICAUTH: false
+        ports:
+            - "8081:8081"
+        depends_on:
+            - db_acadyo
+        networks:
+            - npm-network
+
+volumes:
+    mongodb_data:
+    symfony_var:
+networks:
+    npm-network:
+        external: true

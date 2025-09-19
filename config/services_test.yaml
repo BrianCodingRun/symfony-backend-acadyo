@@ -1,0 +1,7 @@
+# config/services_test.yaml
+services:
+    _defaults:
+        public: true
+
+    App\Service\CloudinaryService:
+        public: true

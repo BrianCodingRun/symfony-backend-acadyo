@@ -15,12 +15,13 @@
         "doctrine/dbal": "^3",
         "doctrine/doctrine-bundle": "^2.15",
         "doctrine/doctrine-migrations-bundle": "^3.4",
-        "doctrine/mongodb-odm-bundle": "^5.3",
+        "doctrine/mongodb-odm-bundle": "^5.4",
         "doctrine/orm": "^3.5",
         "lexik/jwt-authentication-bundle": "^3.1",
         "nelmio/cors-bundle": "^2.5",
         "phpdocumentor/reflection-docblock": "^5.6",
         "phpstan/phpdoc-parser": "^2.2",
+        "symfony/apache-pack": "*",
         "symfony/asset": "7.3.*",
         "symfony/console": "7.3.*",
         "symfony/dotenv": "7.3.*",
@@ -90,5 +91,11 @@
             "require": "7.3.*",
             "docker": true
         }
+    },
+    "require-dev": {
+        "doctrine/data-fixtures": "^2.1",
+        "phpunit/phpunit": "^11.5",
+        "symfony/browser-kit": "7.3.*",
+        "symfony/css-selector": "7.3.*"
     }
 }

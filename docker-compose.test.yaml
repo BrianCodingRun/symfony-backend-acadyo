@@ -1,0 +1,38 @@
+services:
+    # Service de l'application Symfony pour les tests
+    app_test_acadyo:
+        build:
+            context: .
+            args:
+                APP_ENV: test
+        environment:
+            - MONGODB_URL=mongodb://root:rootpassword@db_test_acadyo:27018/db_test_acadyo?authSource=admin
+            - APP_ENV=test
+        depends_on:
+            - db_test_acadyo
+        networks:
+            - test-network
+        command: >
+            sh -c "
+              wait-for-it.sh db_test_acadyo:27018 --timeout=60 --strict -- echo 'MongoDB est prêt !'
+              echo 'Préparation des tests...'
+              php bin/console cache:clear --env=test
+              mkdir -p /var/www/html/var/cache /var/www/html/var/log && chown -R www-data:www-data /var/www/html && chmod -R 775 /var/www/html/var
+              echo 'Lancement des tests...'
+              php bin/console doctrine:mongodb:fixtures:load --env=test --no-interaction
+              php bin/phpunit
+            "
+
+    # Service MongoDB pour les tests
+    db_test_acadyo:
+        image: mongo:7.0
+        environment:
+            MONGO_INITDB_ROOT_USERNAME: root
+            MONGO_INITDB_ROOT_PASSWORD: rootpassword
+            MONGO_INITDB_DATABASE: db_test_acadyo
+        networks:
+            - test-network
+
+networks:
+    test-network:
+        driver: bridge

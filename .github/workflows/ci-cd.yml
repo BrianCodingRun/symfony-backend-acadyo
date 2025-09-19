@@ -1,0 +1,98 @@
+name: CI/CD Pipeline
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
+
+jobs:
+    test:
+        runs-on: ubuntu-24.04
+
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  token: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Create test environment file
+              run: |
+                  cp .env .env.test.local || true
+                  echo "MONGODB_URL=mongodb://root:rootpassword@mongodb_name:27017/acadyodb_test?authSource=admin" >> .env.test.local
+                  echo "APP_ENV=test" >> .env.test.local
+
+            - name: Run tests
+              run: |
+                  set -e
+                  docker compose -f docker-compose.test.yaml up --build --abort-on-container-exit
+
+            - name: Cleanup
+              if: always()
+              run: |
+                  docker compose -f docker-compose.test.yaml down -v
+                  docker system prune -f
+
+    deploy:
+        runs-on: ubuntu-24.04
+        needs: test
+        if: github.ref == 'refs/heads/main'
+
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  token: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Deploy to server
+              uses: appleboy/ssh-action@v1.0.0
+              with:
+                  host: ${{ secrets.SERVER_HOST }}
+                  username: ${{ secrets.SERVER_USER }}
+                  password: ${{ secrets.SERVER_PASSWORD }}
+                  script: |
+                      set -e
+                      cd todolist-app
+
+                      echo "🔄 Mise à jour du code source..."
+                      eval "$(ssh-agent -s)"
+                      git pull origin main
+
+                      echo "🛑 Arrêt des anciens containers..."
+                      docker compose down
+
+                      echo "🧹 Nettoyage des anciennes images..."
+                      docker system prune -f
+
+                      echo "🚀 Démarrage des nouveaux containers..."
+                      APP_ENV=prod docker compose up -d --build
+
+                      echo "⏳ Attente du démarrage des services..."
+                      sleep 30
+
+                      echo "🔍 Vérification du statut des containers..."
+                      docker compose ps
+
+                      echo "🧪 Test de santé de l'application..."
+                      if curl -f -s http://localhost > /dev/null; then
+                          echo "✅ Application accessible !"
+                      else
+                          echo "❌ Erreur: Application non accessible"
+                          docker compose logs app_name
+                          exit 1
+                      fi
+
+                      echo "✅ Déploiement terminé avec succès !"
+
+    notify:
+        runs-on: ubuntu-24.04
+        needs: [deploy]
+        if: always()
+
+        steps:
+            - name: Notify deployment result
+              run: |
+                  if [ "${{ needs.deploy.result }}" == "success" ]; then
+                      echo "✅ Déploiement réussi sur ${{ secrets.SERVER_HOST }}"
+                  else
+                      echo "❌ Échec du déploiement"
+                      exit 1
+                  fi
