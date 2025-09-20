@@ -1,37 +1,34 @@
+version: "3.8"
+
 services:
-    # Service de l'application Symfony pour les tests
     app_test_acadyo:
         build:
             context: .
             args:
                 APP_ENV: test
         environment:
-            - MONGODB_URL=mongodb://root:rootpassword@db_test_acadyo:27018/db_test_acadyo?authSource=admin
+            - MONGODB_URL=mongodb://root:rootpassword@db_acadyo_test:27017/db_acadyo_test?authSource=admin
+            - MONGODB_DB_TEST=db_acadyo_test
             - APP_ENV=test
+            - MAILER_DSN=null://null
+            - CLOUDINARY_CLOUD_NAME=duouyfqku
+            - CLOUDINARY_API_KEY=279999917813899
+            - CLOUDINARY_API_SECRET=KCkgOO9NTN_95opTHz9lXYktlvg
         depends_on:
-            - db_test_acadyo
+            - db_acadyo_test
         networks:
             - test-network
-        command: >
-            sh -c "
-              wait-for-it.sh db_test_acadyo:27018 --timeout=60 --strict -- echo 'MongoDB est prêt !'
-              echo 'Préparation des tests...'
-              php bin/console cache:clear --env=test
-              mkdir -p /var/www/html/var/cache /var/www/html/var/log && chown -R www-data:www-data /var/www/html && chmod -R 775 /var/www/html/var
-              echo 'Lancement des tests...'
-              php bin/console doctrine:mongodb:fixtures:load --env=test --no-interaction
-              php bin/phpunit
-            "
 
-    # Service MongoDB pour les tests
-    db_test_acadyo:
-        image: mongo:7.0
+    db_acadyo_test:
+        image: mongo:8.0
         environment:
             MONGO_INITDB_ROOT_USERNAME: root
             MONGO_INITDB_ROOT_PASSWORD: rootpassword
-            MONGO_INITDB_DATABASE: db_test_acadyo
+            MONGO_INITDB_DATABASE: db_acadyo_test
         networks:
             - test-network
+        tmpfs:
+            - /data/db # Utilise la RAM pour la base de test (plus rapide)
 
 networks:
     test-network:

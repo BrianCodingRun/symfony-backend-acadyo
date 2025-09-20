@@ -18,6 +18,16 @@ class UserFixtures extends Fixture
 
   public function load(ObjectManager $manager): void
   {
+    // ✅ Administrateur
+    $admin = new User();
+    $admin->setEmail('admin@acadyo.com');
+    $admin->setName('Administrateur');
+    $admin->setRoles(['ROLE_ADMIN', 'ROLE_TEACHER']);
+    $admin->setPassword(
+      $this->passwordHasher->hashPassword($admin, 'password')
+    );
+    $manager->persist($admin);
+
     // ✅ Professeur classique déjà en BDD
     $userTeacher = new User();
     $userTeacher->setEmail('formateur@test.com');
@@ -37,6 +47,16 @@ class UserFixtures extends Fixture
       $this->passwordHasher->hashPassword($userStudent, 'password123')
     );
     $manager->persist($userStudent);
+
+    // ✅ Utilisateur simple pour les tests de connexion
+    $simpleUser = new User();
+    $simpleUser->setEmail('user@test.com');
+    $simpleUser->setName('Utilisateur Simple');
+    $simpleUser->setRoles(['ROLE_USER']);
+    $simpleUser->setPassword(
+      $this->passwordHasher->hashPassword($simpleUser, 'password')
+    );
+    $manager->persist($simpleUser);
 
     // ✅ Utilisateur avec token valide
     $userWithValidToken = new User();

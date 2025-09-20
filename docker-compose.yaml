@@ -11,6 +11,9 @@ services:
             - MONGODB_URL=mongodb://root:rootpassword@db_acadyo:27017/db_acadyo?authSource=admin
             - APP_ENV=${APP_ENV}
             - CORS_ALLOW_ORIGIN=http://localhost,http://localhost:5173,http://frontend:5173
+            - ADMIN_NAME=${ADMIN_NAME}
+            - ADMIN_EMAIL=${ADMIN_EMAIL}
+            - ADMIN_PASSWORD=${ADMIN_PASSWORD}
         ports:
             - "8000:80"
         depends_on:
@@ -32,7 +35,6 @@ services:
             - "27017:27017"
         volumes:
             - mongodb_data:/data/db
-            - ./docker/mongodb/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
         networks:
             - npm-network
     mongo-express:
