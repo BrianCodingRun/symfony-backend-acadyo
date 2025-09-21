@@ -42,16 +42,6 @@ COPY docker/apache/vhost.conf /etc/apache2/sites-available/000-default.conf
 WORKDIR /var/www/html
 COPY . .
 
-# Créer un fichier .env minimal pour l'environnement de test
-RUN if [ "$APP_ENV" = "test" ]; then \
-    echo "APP_ENV=test" > .env \
-    && echo "APP_SECRET=$ecretf0rt3st" >> .env \
-    && echo "DATABASE_URL=sqlite:///%kernel.project_dir%/var/data.db" >> .env \
-    && echo "MONGODB_URL=\${MONGODB_URL}" >> .env \
-    && echo "MONGODB_DB_TEST=\${MONGODB_DB_TEST}" >> .env \
-    && echo "MAILER_DSN=\${MAILER_DSN}" >> .env; \
-fi
-
 # Rendre entrypoint.sh exécutable
 RUN chmod +x docker/entrypoint.sh
 
@@ -63,12 +53,15 @@ RUN mkdir -p /var/www/html/var/cache /var/www/html/var/log \
     && chown -R www-data:www-data /var/www/html \
     && chmod -R 775 /var/www/html/var
 
-# Installation des dépendances SANS exécuter les scripts (cache:clear etc.)
+USER www-data
+
+# Installation des dépendances et warmup du cache
 RUN if [ "$APP_ENV" = "prod" ]; then \
-    composer install --no-dev --optimize-autoloader --no-scripts; \
+composer install --no-dev --optimize-autoloader; \
 else \
-    composer install --optimize-autoloader --no-scripts; \
-fi
+composer install --optimize-autoloader; \
+fi \
+&& composer run-script auto-scripts
 
 USER root
 

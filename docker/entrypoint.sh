@@ -38,22 +38,7 @@ chown -R www-data:www-data /var/www/html/var
 chmod -R ug+rwX /var/www/html/var
 
 #
-# 3. Installation dépendances (sauf prod car déjà buildées)
-#
-
-if [ "$APP_ENV" != "prod" ]; then
-  composer install --optimize-autoloader
-  composer run-script auto-scripts || true
-fi
-
-#
-# 4. Clear cache Symfony
-#
-
-php bin/console cache:clear --env=$APP_ENV || true
-
-#
-# 5. Comportement selon environnement
+# 3. Comportement selon environnement
 #
 
 if [ "$APP_ENV" = "dev" ]; then
@@ -77,7 +62,7 @@ if [ "$APP_ENV" = "prod" ]; then
 fi
 
 #
-# 6. Lancement Apache en foreground
+# 4. Lancement Apache en foreground
 #
 
 echo "Démarrage Apache..."
