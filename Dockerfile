@@ -5,7 +5,7 @@ ARG APP_ENV=test
 
 # Installation des extensions PHP nécessaires pour Symfony
 RUN apt-get update && apt-get install -y \
-    git \ 
+    git \
     unzip \
     libicu-dev \
     libpq-dev \
@@ -45,7 +45,7 @@ COPY . .
 # Rendre entrypoint.sh exécutable
 RUN chmod +x docker/entrypoint.sh
 
-# Set environment to production
+# Set environment
 ENV APP_ENV=${APP_ENV}
 
 # Créer le dossier var avec les bonnes permissions
@@ -53,13 +53,12 @@ RUN mkdir -p /var/www/html/var/cache /var/www/html/var/log \
     && chown -R www-data:www-data /var/www/html \
     && chmod -R 775 /var/www/html/var
 
-# Installation des dépendances et warmup du cache
+# Installation des dépendances SANS exécuter les scripts (cache:clear etc.)
 RUN if [ "$APP_ENV" = "prod" ]; then \
-composer install --no-dev --optimize-autoloader; \
+    composer install --no-dev --optimize-autoloader --no-scripts; \
 else \
-composer install --optimize-autoloader; \
-fi \
-&& composer run-script auto-scripts
+    composer install --optimize-autoloader --no-scripts; \
+fi
 
 USER root
 
