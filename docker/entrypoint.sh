@@ -1,12 +1,12 @@
 #!/bin/bash
 set -e
 
-# Extraire host et port de MONGODB_URL
-MONGO_HOST=$(echo "$MONGODB_URL" | sed -E 's#mongodb://([^:/]+)(:[0-9]+)?.*#\1#')
-MONGO_PORT=$(echo "$MONGODB_URL" | sed -E 's#mongodb://[^:/]+:([0-9]+).*#\1#')
+# Extraire host et port depuis l’URL Mongo
+MONGO_HOST=$(echo "$MONGODB_URL" | sed -E 's#.*@([^:/]+).*#\1#')
+MONGO_PORT=$(echo "$MONGODB_URL" | sed -nE 's#.*:([0-9]+)/.*#\1#p')
 
-# Si pas de port trouvé → 27017 par défaut
-if [ -z "$MONGO_PORT" ] || ! [[ "$MONGO_PORT" =~ ^[0-9]+$ ]]; then
+# Si pas de port explicite → 27017 par défaut
+if [ -z "$MONGO_PORT" ]; then
   MONGO_PORT=27017
 fi
 
