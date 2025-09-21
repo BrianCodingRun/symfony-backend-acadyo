@@ -31,11 +31,6 @@ echo "MongoDB est prêt!"
 #
 
 echo "Préparation de l'application..."
-mkdir -p /var/www/html/var/cache /var/www/html/var/log
-mkdir -p /var/www/html/var/cache/doctrine/odm/mongodb/{Hydrators,Proxies}
-
-chown -R www-data:www-data /var/www/html/var
-chmod -R ug+rwX /var/www/html/var
 
 #
 # 3. Comportement selon environnement

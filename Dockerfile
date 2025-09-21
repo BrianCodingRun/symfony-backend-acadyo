@@ -60,26 +60,9 @@ RUN if [ "$APP_ENV" = "prod" ]; then \
 # Copier tout le reste du code source
 COPY . .
 
-# Créer un fichier .env minimal selon l'environnement
-RUN if [ "$APP_ENV" = "test" ]; then \
-    echo "APP_ENV=test" > .env && \
-    echo "APP_SECRET=test-secret-key-for-ci-$(date +%s)" >> .env && \
-    echo "MONGODB_URL=\${MONGODB_URL}" >> .env && \
-    echo "MONGODB_DB_TEST=\${MONGODB_DB_TEST}" >> .env && \
-    echo "DATABASE_URL=sqlite:///%kernel.project_dir%/var/data.db" >> .env && \
-    echo "MAILER_DSN=\${MAILER_DSN}" >> .env && \
-    echo "CLOUDINARY_CLOUD_NAME=\${CLOUDINARY_CLOUD_NAME}" >> .env && \
-    echo "CLOUDINARY_API_KEY=\${CLOUDINARY_API_KEY}" >> .env && \
-    echo "CLOUDINARY_API_SECRET=\${CLOUDINARY_API_SECRET}" >> .env; \
-elif [ "$APP_ENV" = "prod" ] && [ ! -f .env ]; then \
-    echo "APP_ENV=prod" > .env && \
-    echo "APP_SECRET=\${APP_SECRET}" >> .env && \
-    echo "MONGODB_URL=\${MONGODB_URL}" >> .env && \
-    echo "MAILER_DSN=\${MAILER_DSN}" >> .env; \
-fi
-
 # Créer le dossier var avec les bonnes permissions
 RUN mkdir -p /var/www/html/var/cache /var/www/html/var/log \
+&& mkdir -p /var/www/html/var/cache/doctrine/odm/mongodb/{Hydrators,Proxies} \
 && chown -R www-data:www-data /var/www/html \
 && chmod -R 775 /var/www/html/var
 
