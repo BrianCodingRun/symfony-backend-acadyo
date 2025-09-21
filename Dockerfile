@@ -42,6 +42,15 @@ COPY docker/apache/vhost.conf /etc/apache2/sites-available/000-default.conf
 WORKDIR /var/www/html
 COPY . .
 
+# Créer un fichier .env minimal pour l'environnement de test
+RUN if [ "$APP_ENV" = "test" ]; then \
+    echo "APP_ENV=test" > .env \
+    && echo "APP_SECRET=$ecretf0rt3st" >> .env \
+    && echo "MONGODB_URL=\${MONGODB_URL}" >> .env \
+    && echo "MONGODB_DB_TEST=\${MONGODB_DB_TEST}" >> .env \
+    && echo "MAILER_DSN=\${MAILER_DSN}" >> .env; \
+fi
+
 # Rendre entrypoint.sh exécutable
 RUN chmod +x docker/entrypoint.sh
 
