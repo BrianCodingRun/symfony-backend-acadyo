@@ -46,6 +46,7 @@ COPY . .
 RUN if [ "$APP_ENV" = "test" ]; then \
     echo "APP_ENV=test" > .env \
     && echo "APP_SECRET=$ecretf0rt3st" >> .env \
+    && echo "DATABASE_URL=sqlite:///%kernel.project_dir%/var/data.db" >> .env \
     && echo "MONGODB_URL=\${MONGODB_URL}" >> .env \
     && echo "MONGODB_DB_TEST=\${MONGODB_DB_TEST}" >> .env \
     && echo "MAILER_DSN=\${MAILER_DSN}" >> .env; \
