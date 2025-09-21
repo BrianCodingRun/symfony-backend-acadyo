@@ -40,10 +40,6 @@ COPY docker/apache/vhost.conf /etc/apache2/sites-available/000-default.conf
 
 # Copie du code source dans le container
 WORKDIR /var/www/html
-COPY . .
-
-# Rendre entrypoint.sh exécutable
-RUN chmod +x docker/entrypoint.sh
 
 # Copier le fichier .env AVANT l'installation des dépendances
 COPY .env* ./
@@ -51,22 +47,34 @@ COPY .env* ./
 # Set environment
 ENV APP_ENV=${APP_ENV}
 
+# Installation des dépendances SANS auto-scripts pour éviter l'erreur
+RUN if [ "$APP_ENV" = "prod" ]; then \
+    composer install --no-dev --optimize-autoloader --no-scripts; \
+    else \
+    composer install --optimize-autoloader --no-scripts; \
+    fi
+
+# Copier tout le reste du code source
+COPY . .
+
+# Rendre entrypoint.sh exécutable
+RUN chmod +x docker/entrypoint.sh
+
 # Créer le dossier var avec les bonnes permissions
 RUN mkdir -p /var/www/html/var/cache /var/www/html/var/log \
     && chown -R www-data:www-data /var/www/html \
     && chmod -R 775 /var/www/html/var
 
+# Générer l'autoload optimisé
+RUN composer dump-autoload --optimize
+
+# Changer vers l'utilisateur www-data pour les opérations Symfony
 USER www-data
 
-# Installation des dépendances et warmup du cache
-RUN if [ "$APP_ENV" = "prod" ]; then \
-composer install --no-dev --optimize-autoloader; \
-else \
-composer install --optimize-autoloader; \
-fi \
-&& composer run-script auto-scripts
-
+# Revenir en root pour le démarrage d'Apache
 USER root
 
+# Port exposé
 EXPOSE 80
+
 ENTRYPOINT ["docker/entrypoint.sh"]
