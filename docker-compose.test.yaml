@@ -18,6 +18,16 @@ services:
             - db_acadyo_test
         networks:
             - test-network
+        command: >
+            sh -c "
+                wait-for-it.sh db_acadyo_test:27017 --timeout=60 --strict -- echo 'MongoDB est prêt !'
+                mkdir -p /var/www/html/var/cache /var/www/html/var/log \&& chown -R www-data:www-data /var/www/html \&& chmod -R 775 /var/www/html/var
+                echo 'Chargement des fixtures de test...'
+                php bin/console doctrine:mongodb:fixtures:load --no-interaction --env=test
+                echo 'Lancement des tests...'
+                php bin/phpunit
+                echo 'Tests terminés'
+            "
 
     db_acadyo_test:
         image: mongo:8.0

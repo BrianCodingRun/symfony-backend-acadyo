@@ -69,9 +69,6 @@ RUN mkdir -p /var/www/html/var/cache /var/www/html/var/log \
 # Générer l'autoload optimisé
 RUN composer dump-autoload --optimize
 
-# Rendre entrypoint.sh exécutable
-RUN chmod +x docker/entrypoint.sh
-
 # Changer vers l'utilisateur www-data pour les opérations Symfony
 USER www-data
 
@@ -80,5 +77,3 @@ USER root
 
 # Port exposé
 EXPOSE 80
-
-ENTRYPOINT ["docker/entrypoint.sh"]

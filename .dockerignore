@@ -1,2 +1,10 @@
-./env.local
-./.env.test.local
+.git
+.gitignore
+README.md
+.env.local
+.env.test.local
+var/
+vendor/
+.dockerignore
+docker-compose.yaml
+Dockerfile

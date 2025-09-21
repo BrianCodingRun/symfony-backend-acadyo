@@ -41,11 +41,6 @@ chmod -R 775 /var/www/html/var
 # 3. Comportement selon environnement
 #
 
-if [ "$APP_ENV" = "dev" ]; then
-  echo "Chargement des fixtures de développement..."
-  php bin/console doctrine:mongodb:fixtures:load --no-interaction || true
-fi
-
 if [ "$APP_ENV" = "test" ]; then
   echo "Chargement des fixtures de test..."
   php bin/console doctrine:mongodb:fixtures:load --no-interaction --env=test
