@@ -1,12 +1,21 @@
 #!/bin/bash
 set -e
 
-# Extraire host et port depuis l’URL Mongo
-MONGO_HOST=$(echo "$MONGODB_URL" | sed -E 's#.*@([^:/]+).*#\1#')
-MONGO_PORT=$(echo "$MONGODB_URL" | sed -nE 's#.*:([0-9]+)/.*#\1#p')
+#
+# 1. Vérification MongoDB (host/port)
+#
 
-# Si pas de port explicite → 27017 par défaut
-if [ -z "$MONGO_PORT" ]; then
+# Extraire la partie après @ (host:port/...)
+MONGO_PART=$(echo "$MONGODB_URL" | awk -F'@' '{print $2}')
+
+# Hôte = avant ":" ou "/"
+MONGO_HOST=$(echo "$MONGO_PART" | cut -d: -f1 | cut -d/ -f1)
+
+# Port = après ":" si présent, sinon vide
+MONGO_PORT=$(echo "$MONGO_PART" | cut -d: -f2 | cut -d/ -f1)
+
+# Port par défaut si vide ou invalide
+if [ -z "$MONGO_PORT" ] || ! [[ "$MONGO_PORT" =~ ^[0-9]+$ ]]; then
   MONGO_PORT=27017
 fi
 
@@ -17,6 +26,10 @@ until nc -z "$MONGO_HOST" "$MONGO_PORT"; do
 done
 echo "MongoDB est prêt!"
 
+#
+# 2. Préparation Symfony (cache, logs, droits)
+#
+
 echo "Préparation de l'application..."
 mkdir -p /var/www/html/var/cache /var/www/html/var/log
 mkdir -p /var/www/html/var/cache/doctrine/odm/mongodb/{Hydrators,Proxies}
@@ -24,22 +37,30 @@ mkdir -p /var/www/html/var/cache/doctrine/odm/mongodb/{Hydrators,Proxies}
 chown -R www-data:www-data /var/www/html/var
 chmod -R ug+rwX /var/www/html/var
 
-# Install dépendances en non-prod
+#
+# 3. Installation dépendances (sauf prod car déjà buildées)
+#
+
 if [ "$APP_ENV" != "prod" ]; then
   composer install --optimize-autoloader
   composer run-script auto-scripts || true
 fi
 
-# Cache clear
+#
+# 4. Clear cache Symfony
+#
+
 php bin/console cache:clear --env=$APP_ENV || true
 
-# Mode dev
+#
+# 5. Comportement selon environnement
+#
+
 if [ "$APP_ENV" = "dev" ]; then
   echo "Chargement des fixtures de développement..."
   php bin/console doctrine:mongodb:fixtures:load --no-interaction || true
 fi
 
-# Mode test
 if [ "$APP_ENV" = "test" ]; then
   echo "Chargement des fixtures de test..."
   php bin/console doctrine:mongodb:fixtures:load --env=test --no-interaction
@@ -50,11 +71,14 @@ if [ "$APP_ENV" = "test" ]; then
   exit $exit_code
 fi
 
-# Mode prod
 if [ "$APP_ENV" = "prod" ]; then
   echo "Vérification de l'utilisateur admin..."
   php bin/console app:create-admin-user --env=prod || echo "Admin déjà existant"
 fi
 
-echo "Démarrage de Apache..."
+#
+# 6. Lancement Apache en foreground
+#
+
+echo "Démarrage Apache..."
 exec apache2-foreground
