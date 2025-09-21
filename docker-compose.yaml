@@ -8,52 +8,37 @@ services:
             args:
                 APP_ENV: ${APP_ENV}
         environment:
-            - MONGODB_URL=mongodb://root:rootpassword@db_acadyo:27017/db_acadyo?authSource=admin
+            - MONGODB_URL=mongodb://briandev:0000@31.97.192.58/acadyo?authSource=acadyo
             - APP_ENV=${APP_ENV}
-            - CORS_ALLOW_ORIGIN=http://localhost,http://localhost:5173,http://frontend:5173
+            - CORS_ALLOW_ORIGIN=http://acadyo.briancoupama.re
             - ADMIN_NAME=${ADMIN_NAME}
             - ADMIN_EMAIL=${ADMIN_EMAIL}
             - ADMIN_PASSWORD=${ADMIN_PASSWORD}
         ports:
             - "8000:80"
-        depends_on:
-            - db_acadyo
+        # Suppression de depends_on car plus de container MongoDB local
         networks:
             - npm-network
         command: ["sh", "/var/www/html/docker/entrypoint.sh"]
         volumes:
             - symfony_var:/var/www/html/var
 
-    # Service MongoDB
-    db_acadyo:
-        image: mongo:8.0
-        environment:
-            MONGO_INITDB_ROOT_USERNAME: root
-            MONGO_INITDB_ROOT_PASSWORD: rootpassword
-            MONGO_INITDB_DATABASE: db_acadyo
-        ports:
-            - "27017:27017"
-        volumes:
-            - mongodb_data:/data/db
-        networks:
-            - npm-network
+    # Optionnel: Mongo Express pour votre MongoDB distant
     mongo-express:
         image: mongo-express
         environment:
-            ME_CONFIG_MONGODB_ADMINUSERNAME: root
-            ME_CONFIG_MONGODB_ADMINPASSWORD: rootpassword
-            ME_CONFIG_MONGODB_URL: mongodb://root:rootpassword@db_acadyo:27017/
+            ME_CONFIG_MONGODB_ADMINUSERNAME: briandev
+            ME_CONFIG_MONGODB_ADMINPASSWORD: "0000"
+            ME_CONFIG_MONGODB_URL: mongodb://briandev:0000@31.97.192.58/acadyo?authSource=acadyo
             ME_CONFIG_BASICAUTH: false
         ports:
             - "8081:8081"
-        depends_on:
-            - db_acadyo
         networks:
             - npm-network
 
 volumes:
-    mongodb_data:
     symfony_var:
+
 networks:
     npm-network:
         external: true

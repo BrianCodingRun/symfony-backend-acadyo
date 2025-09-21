@@ -2,9 +2,9 @@ name: CI/CD Pipeline
 
 on:
     push:
-        branches: [main]
+        branches: [mabranche]
     pull_request:
-        branches: [main]
+        branches: [mabranche]
 
 jobs:
     test:
@@ -15,12 +15,6 @@ jobs:
               with:
                   token: ${{ secrets.GITHUB_TOKEN }}
 
-            - name: Create test environment file
-              run: |
-                  cp .env .env.test.local || true
-                  echo "MONGODB_URL=mongodb://root:rootpassword@mongodb_name:27017/acadyodb_test?authSource=admin" >> .env.test.local
-                  echo "APP_ENV=test" >> .env.test.local
-
             - name: Run tests
               run: |
                   set -e
@@ -28,14 +22,11 @@ jobs:
 
             - name: Cleanup
               if: always()
-              run: |
-                  docker compose -f docker-compose.test.yaml down -v
-                  docker system prune -f
+              run: docker compose -f docker-compose.test.yaml down
 
     deploy:
         runs-on: ubuntu-24.04
         needs: test
-        if: github.ref == 'refs/heads/main'
 
         steps:
             - uses: actions/checkout@v4
