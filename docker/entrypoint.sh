@@ -56,5 +56,5 @@ if [ "$APP_ENV" = "prod" ]; then
   php bin/console app:create-admin-user --env=prod || echo "Admin déjà existant"
 fi
 
-echo "Démarrage Apache..."
+echo "Démarrage de Apache..."
 exec apache2-foreground
