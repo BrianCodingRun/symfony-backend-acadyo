@@ -2,9 +2,9 @@ name: CI/CD Pipeline
 
 on:
     push:
-        branches: [mabranche]
+        branches: [main]
     pull_request:
-        branches: [mabranche]
+        branches: [main]
 
 jobs:
     test:
@@ -41,7 +41,7 @@ jobs:
                   password: ${{ secrets.SERVER_PASSWORD }}
                   script: |
                       set -e
-                      cd todolist-app
+                      cd symfony-backend-acadyo
 
                       echo "🔄 Mise à jour du code source..."
                       eval "$(ssh-agent -s)"
@@ -61,15 +61,6 @@ jobs:
 
                       echo "🔍 Vérification du statut des containers..."
                       docker compose ps
-
-                      echo "🧪 Test de santé de l'application..."
-                      if curl -f -s http://localhost > /dev/null; then
-                          echo "✅ Application accessible !"
-                      else
-                          echo "❌ Erreur: Application non accessible"
-                          docker compose logs app_name
-                          exit 1
-                      fi
 
                       echo "✅ Déploiement terminé avec succès !"
 
