@@ -53,6 +53,9 @@ jobs:
                       echo "🧹 Nettoyage des anciennes images..."
                       docker system prune -f
 
+                      echo "🔄 Re création du network npm-network..."
+                      docker network create npm-network
+
                       echo "🚀 Démarrage des nouveaux containers..."
                       APP_ENV=prod docker compose up -d --build
 
