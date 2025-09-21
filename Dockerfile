@@ -66,6 +66,7 @@ RUN if [ "$APP_ENV" = "test" ]; then \
     echo "APP_SECRET=test-secret-key-for-ci-$(date +%s)" >> .env && \
     echo "MONGODB_URL=\${MONGODB_URL}" >> .env && \
     echo "MONGODB_DB_TEST=\${MONGODB_DB_TEST}" >> .env && \
+    echo "DATABASE_URL=sqlite:///%kernel.project_dir%/var/data.db" >> .env && \
     echo "MAILER_DSN=\${MAILER_DSN}" >> .env && \
     echo "CLOUDINARY_CLOUD_NAME=\${CLOUDINARY_CLOUD_NAME}" >> .env && \
     echo "CLOUDINARY_API_KEY=\${CLOUDINARY_API_KEY}" >> .env && \
