@@ -42,6 +42,9 @@ COPY docker/apache/vhost.conf /etc/apache2/sites-available/000-default.conf
 WORKDIR /var/www/html
 COPY . .
 
+# Rendre entrypoint.sh exécutable
+RUN chmod +x docker/entrypoint.sh
+
 # Set environment to production
 ENV APP_ENV=${APP_ENV}
 
