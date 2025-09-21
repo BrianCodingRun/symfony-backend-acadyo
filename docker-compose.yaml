@@ -28,7 +28,7 @@ services:
                 mkdir -p /var/www/html/var/cache/doctrine/odm/mongodb/{Hydrators,Proxies}
                 chown -R www-data:www-data /var/www/html
                 chmod -R 775 /var/www/html/var
-                echo "Vérification de l'utilisateur admin..."
+                echo 'Vérification de l'utilisateur admin...'
                 php bin/console app:create-admin-user --env=${APP_ENV} || echo "Admin déjà existant"
                 echo 'Démarrage Apache...'
                 apache2-foreground
