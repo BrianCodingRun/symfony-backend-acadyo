@@ -41,6 +41,9 @@ COPY docker/apache/vhost.conf /etc/apache2/sites-available/000-default.conf
 # Copie du code source dans le container
 WORKDIR /var/www/html
 
+# Copier composer.json et composer.lock en premier (pour le cache Docker)
+COPY composer.json composer.lock ./
+
 # Copier le fichier .env AVANT l'installation des dépendances
 COPY .env* ./
 
