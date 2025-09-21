@@ -45,6 +45,9 @@ COPY . .
 # Rendre entrypoint.sh exécutable
 RUN chmod +x docker/entrypoint.sh
 
+# Copier le fichier .env AVANT l'installation des dépendances
+COPY .env* ./
+
 # Set environment
 ENV APP_ENV=${APP_ENV}
 
