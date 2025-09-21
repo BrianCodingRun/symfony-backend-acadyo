@@ -11,9 +11,9 @@ services:
             - MONGODB_DB_TEST=db_acadyo_test
             - APP_ENV=test
             - MAILER_DSN=null://null
-            - CLOUDINARY_CLOUD_NAME=duouyfqku
-            - CLOUDINARY_API_KEY=279999917813899
-            - CLOUDINARY_API_SECRET=KCkgOO9NTN_95opTHz9lXYktlvg
+            - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+            - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+            - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
         depends_on:
             - db_acadyo_test
         networks:

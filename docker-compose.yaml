@@ -8,9 +8,9 @@ services:
             args:
                 APP_ENV: ${APP_ENV}
         environment:
-            - MONGODB_URL=mongodb://briandev:0000@31.97.192.58/acadyo?authSource=acadyo
+            - MONGODB_URL=${MONGODB_URL}
             - APP_ENV=${APP_ENV}
-            - CORS_ALLOW_ORIGIN=http://acadyo.briancoupama.re
+            - CORS_ALLOW_ORIGIN=${CORS_ALLOW_ORIGIN}
             - ADMIN_NAME=${ADMIN_NAME}
             - ADMIN_EMAIL=${ADMIN_EMAIL}
             - ADMIN_PASSWORD=${ADMIN_PASSWORD}
@@ -29,7 +29,7 @@ services:
         environment:
             ME_CONFIG_MONGODB_ADMINUSERNAME: adminuser
             ME_CONFIG_MONGODB_ADMINPASSWORD: "rtrNr86!verb6"
-            ME_CONFIG_MONGODB_URL: mongodb://adminuser:rtrNr86!verb6@31.97.192.58/acadyo?authSource=acadyo
+            ME_CONFIG_MONGODB_URL: mongodb://adminuser:rtrNr86!verb6@31.97.192.58/?authSource=admin
             ME_CONFIG_BASICAUTH: true
             ME_CONFIG_BASICAUTH_USERNAME: "administrator38624"
             ME_CONFIG_BASICAUTH_PASSWORD: "jebtb987dva"
