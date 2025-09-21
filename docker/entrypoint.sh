@@ -31,6 +31,11 @@ echo "MongoDB est prêt!"
 #
 
 echo "Préparation de l'application..."
+mkdir -p /var/www/html/var/cache /var/www/html/var/log
+mkdir -p /var/www/html/var/cache/doctrine/odm/mongodb/{Hydrators,Proxies}
+
+chown -R www-data:www-data /var/www/html/var
+chmod -R 775 /var/www/html/var
 
 #
 # 3. Comportement selon environnement
@@ -43,7 +48,7 @@ fi
 
 if [ "$APP_ENV" = "test" ]; then
   echo "Chargement des fixtures de test..."
-  php bin/console doctrine:mongodb:fixtures:load --env=test --no-interaction
+  php bin/console doctrine:mongodb:fixtures:load --no-interaction --env=test
   echo "Lancement des tests..."
   php bin/phpunit
   exit_code=$?
@@ -52,8 +57,9 @@ if [ "$APP_ENV" = "test" ]; then
 fi
 
 if [ "$APP_ENV" = "prod" ]; then
+  php bin/console cache:clear --env=${APP_ENV}
   echo "Vérification de l'utilisateur admin..."
-  php bin/console app:create-admin-user --env=prod || echo "Admin déjà existant"
+  php bin/console app:create-admin-user --env=${APP_ENV} || echo "Admin déjà existant"
 fi
 
 #
