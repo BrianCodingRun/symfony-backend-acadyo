@@ -62,15 +62,15 @@ COPY . .
 
 # Créer le dossier var avec les bonnes permissions
 RUN mkdir -p /var/www/html/var/cache /var/www/html/var/log \
-&& mkdir -p /var/www/html/var/cache/doctrine/odm/mongodb/{Hydrators,Proxies} \
-&& chown -R www-data:www-data /var/www/html \
-&& chmod -R 775 /var/www/html/var
-
-# Rendre entrypoint.sh exécutable
-RUN chmod +x docker/entrypoint.sh
+    && mkdir -p /var/www/html/var/cache/doctrine/odm/mongodb/{Hydrators,Proxies} \
+    && chown -R www-data:www-data /var/www/html \
+    && chmod -R 775 /var/www/html/var
 
 # Générer l'autoload optimisé
 RUN composer dump-autoload --optimize
+
+# Rendre entrypoint.sh exécutable
+RUN chmod +x docker/entrypoint.sh
 
 # Changer vers l'utilisateur www-data pour les opérations Symfony
 USER www-data
