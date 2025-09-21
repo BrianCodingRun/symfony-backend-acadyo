@@ -60,13 +60,13 @@ RUN if [ "$APP_ENV" = "prod" ]; then \
 # Copier tout le reste du code source
 COPY . .
 
-# Rendre entrypoint.sh exécutable
-RUN chmod +x docker/entrypoint.sh
-
 # Créer le dossier var avec les bonnes permissions
 RUN mkdir -p /var/www/html/var/cache /var/www/html/var/log \
-    && chown -R www-data:www-data /var/www/html \
-    && chmod -R 775 /var/www/html/var
+&& chown -R www-data:www-data /var/www/html \
+&& chmod -R 775 /var/www/html/var
+
+# Rendre entrypoint.sh exécutable
+RUN chmod +x docker/entrypoint.sh
 
 # Générer l'autoload optimisé
 RUN composer dump-autoload --optimize
