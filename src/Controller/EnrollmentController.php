@@ -8,6 +8,7 @@ use Doctrine\ODM\MongoDB\DocumentManager;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Http\Attribute\CurrentUser;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -43,68 +44,72 @@ class EnrollmentController extends AbstractController
     #[IsGranted('ROLE_STUDENT')]
     public function joinClassroom(Request $request, #[CurrentUser] ?User $user): JsonResponse
     {
-        $data = json_decode($request->getContent(), true);
-        $code = $data['code'] ?? null;
+        try {
+            $data = json_decode($request->getContent(), true);
+            $code = $data['code'] ?? null;
 
-        if (!$code) {
+            if (!$code) {
+                return new JsonResponse([
+                    'success' => false,
+                    'message' => 'Le code du classroom est requis'
+                ], 400);
+            }
+
+            $code = strtoupper(trim($code));
+            // $user = $this->getCurrentUser();
+
+            // Rechercher le classroom par code
+            $classroom = $this->dm->getRepository(Classroom::class)->findOneBy(['code' => $code]);
+
+            if (!$classroom) {
+                return new JsonResponse([
+                    'success' => false,
+                    'message' => 'Code invalide ou classroom inexistant'
+                ], 404);
+            }
+
+            // Vérifier si l'étudiant n'est pas déjà inscrit
+            if ($classroom->hasStudent($user)) {
+                return new JsonResponse([
+                    'success' => false,
+                    'message' => 'Vous êtes déjà inscrit à ce cours'
+                ], 409);
+            }
+
+            // Vérifier que l'utilisateur n'est pas le professeur du cours
+            if ($classroom->getTeacher() === $user) {
+                return new JsonResponse([
+                    'success' => false,
+                    'message' => 'Vous ne pouvez pas vous inscrire à votre propre cours'
+                ], 400);
+            }
+
+            // Inscription
+            $classroom->addStudent($user);
+            $user->addEnrolledClassroom($classroom);
+
+            $this->dm->flush();
+
             return new JsonResponse([
-                'success' => false,
-                'message' => 'Le code du classroom est requis'
-            ], 400);
+                'success' => true,
+                'message' => 'Inscription réussie !',
+                'classroom' => [
+                    'id' => $classroom->getId(),
+                    'title' => $classroom->getTitle(),
+                    'description' => $classroom->getDescription(),
+                    'code' => $classroom->getCode(),
+                    'teacher' => [
+                        'id' => $classroom->getTeacher()->getId(),
+                        'name' => $classroom->getTeacher()->getName(),
+                        'email' => $classroom->getTeacher()->getEmail()
+                    ],
+                    'studentsCount' => $classroom->getStudentsCount(),
+                    'createdAt' => $classroom->getCreatedAt()->format('Y-m-d H:i:s')
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return $this->json(['error' => 'Erreur interne du serveur'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-
-        $code = strtoupper(trim($code));
-        // $user = $this->getCurrentUser();
-
-        // Rechercher le classroom par code
-        $classroom = $this->dm->getRepository(Classroom::class)->findOneBy(['code' => $code]);
-
-        if (!$classroom) {
-            return new JsonResponse([
-                'success' => false,
-                'message' => 'Code invalide ou classroom inexistant'
-            ], 404);
-        }
-
-        // Vérifier si l'étudiant n'est pas déjà inscrit
-        if ($classroom->hasStudent($user)) {
-            return new JsonResponse([
-                'success' => false,
-                'message' => 'Vous êtes déjà inscrit à ce cours'
-            ], 409);
-        }
-
-        // Vérifier que l'utilisateur n'est pas le professeur du cours
-        if ($classroom->getTeacher() === $user) {
-            return new JsonResponse([
-                'success' => false,
-                'message' => 'Vous ne pouvez pas vous inscrire à votre propre cours'
-            ], 400);
-        }
-
-        // Inscription
-        $classroom->addStudent($user);
-        $user->addEnrolledClassroom($classroom);
-
-        $this->dm->flush();
-
-        return new JsonResponse([
-            'success' => true,
-            'message' => 'Inscription réussie !',
-            'classroom' => [
-                'id' => $classroom->getId(),
-                'title' => $classroom->getTitle(),
-                'description' => $classroom->getDescription(),
-                'code' => $classroom->getCode(),
-                'teacher' => [
-                    'id' => $classroom->getTeacher()->getId(),
-                    'name' => $classroom->getTeacher()->getName(),
-                    'email' => $classroom->getTeacher()->getEmail()
-                ],
-                'studentsCount' => $classroom->getStudentsCount(),
-                'createdAt' => $classroom->getCreatedAt()->format('Y-m-d H:i:s')
-            ]
-        ]);
     }
 
     /**

@@ -18,39 +18,23 @@ services:
             - "8000:80"
         networks:
             - npm-network
-        command: >
-            sh -c "
-                echo 'Attente de MongoDB...'
+        command: |
+            sh -c '
+                echo "Attente de MongoDB..."
                 sleep 10
-                echo 'MongoDB devrait être accessible maintenant'
+                echo "MongoDB est prêt !"
                 php bin/console cache:clear --env=${APP_ENV}
                 mkdir -p /var/www/html/var/cache /var/www/html/var/log
                 mkdir -p /var/www/html/var/cache/doctrine/odm/mongodb/{Hydrators,Proxies}
                 chown -R www-data:www-data /var/www/html
                 chmod -R 775 /var/www/html/var
-                echo 'Vérification de l'utilisateur admin...'
+                echo "Vérification de l utilisateur admin..."
                 php bin/console app:create-admin-user --env=${APP_ENV} || echo "Admin déjà existant"
-                echo 'Démarrage Apache...'
+                echo "Démarrage Apache..."
                 apache2-foreground
-            "
+            '
         volumes:
             - symfony_var:/var/www/html/var
-        restart: unless-stopped
-
-    # Optionnel: Mongo Express pour votre MongoDB distant
-    mongo-express:
-        image: mongo-express:latest
-        environment:
-            ME_CONFIG_MONGODB_ADMINUSERNAME: adminuser
-            ME_CONFIG_MONGODB_ADMINPASSWORD: "rtrNr86!verb6"
-            ME_CONFIG_MONGODB_URL: mongodb://adminuser:rtrNr86!verb6@31.97.192.58/?authSource=admin
-            ME_CONFIG_BASICAUTH: "true"
-            ME_CONFIG_BASICAUTH_USERNAME: "administrator38624"
-            ME_CONFIG_BASICAUTH_PASSWORD: "jebtb987dva"
-        ports:
-            - "8081:8081"
-        networks:
-            - npm-network
         restart: unless-stopped
 
 volumes:

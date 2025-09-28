@@ -5,3 +5,8 @@ services:
 
     App\Service\CloudinaryService:
         public: true
+    # Si vous voulez un mock par défaut pour tous les tests
+    test.cloudinary_service:
+        class: App\Service\CloudinaryService
+        public: true
+        # Mock par défaut qui ne fait rien

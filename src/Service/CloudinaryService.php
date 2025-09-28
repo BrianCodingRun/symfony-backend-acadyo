@@ -7,6 +7,19 @@ class CloudinaryService
 {
   private Cloudinary $cloudinary;
 
+  // Types MIME autorisés
+  private const ALLOWED_MIME_TYPES = [
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'application/pdf',
+    'text/plain',
+  ];
+
+  // Taille max (ici 1 Mo)
+  private const MAX_FILE_SIZE = 1 * 1024 * 1024;
+
   public function __construct()
   {
     $this->cloudinary = new Cloudinary([
@@ -23,6 +36,21 @@ class CloudinaryService
 
   public function uploadFile(string $filePath, array $options = []): array
   {
+    // Vérification taille
+    $fileSize = filesize($filePath);
+    if ($fileSize > self::MAX_FILE_SIZE) {
+      throw new \RuntimeException("Le fichier est trop volumineux (max " . (self::MAX_FILE_SIZE / 1024 / 1024) . " Mo).");
+    }
+
+    // Vérification type MIME
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mimeType = finfo_file($finfo, $filePath);
+    finfo_close($finfo);
+
+    if (!in_array($mimeType, self::ALLOWED_MIME_TYPES, true)) {
+      throw new \RuntimeException("Type de fichier non autorisé ($mimeType).");
+    }
+
     return $this->cloudinary->uploadApi()->upload($filePath, $options)->getArrayCopy();
   }
   public function deleteFile(string $publicId): array

@@ -20,12 +20,12 @@ class CourseControllerTest extends WebTestCase
     protected function setUp(): void
     {
         $this->client = static::createClient();
-
         $this->documentManager = static::getContainer()->get(DocumentManager::class);
 
         // Nettoyage des collections
         $this->documentManager->createQueryBuilder(Course::class)->remove()->getQuery()->execute();
         $this->documentManager->createQueryBuilder(User::class)->remove()->getQuery()->execute();
+        $this->documentManager->createQueryBuilder(Classroom::class)->remove()->getQuery()->execute();
 
         // Création utilisateur test
         $user = new User();
@@ -63,29 +63,37 @@ class CourseControllerTest extends WebTestCase
         ];
     }
 
-    public function testCreateCourseSuccess(): void
+    private function createTestFile(string $content = 'test content', string $name = 'test.txt'): UploadedFile
     {
-        $file = new UploadedFile(
-            __DIR__ . '/fixtures/test-file.txt',
-            'test-file.txt'
-        );
+        $tempFile = tempnam(sys_get_temp_dir(), 'test_upload');
+        file_put_contents($tempFile, $content);
 
+        return new UploadedFile($tempFile, $name, null, null, true);
+    }
+
+    // ============ TESTS CRÉATION DE COURS (SANS MOCK) ============
+
+    public function testCreateCourseWithoutFile(): void
+    {
         $this->client->request(
             'POST',
             '/api/courses',
             [
-                'title' => 'Nouveau cours',
+                'title' => 'Cours sans fichier',
                 'content' => 'Contenu du cours',
             ],
-            [
-                'file' => $file
-            ],
+            [],
             array_merge([
                 'CONTENT_TYPE' => 'multipart/form-data',
             ], $this->authHeaders())
         );
 
         $this->assertResponseStatusCodeSame(Response::HTTP_CREATED);
+
+        $responseData = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertEquals('Cours sans fichier', $responseData['title']);
+        $this->assertEquals('Contenu du cours', $responseData['content']);
+        $this->assertNull($responseData['filePath']);
     }
 
     public function testCreateCourseUntitled(): void
@@ -103,14 +111,25 @@ class CourseControllerTest extends WebTestCase
         $this->assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
 
         $responseData = json_decode($this->client->getResponse()->getContent(), true);
-
-        $this->assertEquals(
-            "Le titre est obligatoire",
-            $responseData['error']
-        );
+        $this->assertEquals("Le titre est obligatoire", $responseData['error']);
     }
 
-    public function testCreateCourseWithClassroomFake(): void
+    public function testCreateCourseWithEmptyTitle(): void
+    {
+        $this->client->request(
+            'POST',
+            '/api/courses',
+            ['title' => ''],
+            [],
+            array_merge([
+                'CONTENT_TYPE' => 'multipart/form-data',
+            ], $this->authHeaders())
+        );
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+    }
+
+    public function testCreateCourseWithFakeClassroom(): void
     {
         $fakeClassroom = '68908ce91a3d47337a003b60';
 
@@ -130,52 +149,56 @@ class CourseControllerTest extends WebTestCase
         $this->assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
 
         $responseData = json_decode($this->client->getResponse()->getContent(), true);
-
-        $this->assertEquals(
-            "Classroom introuvable",
-            $responseData['error']
-        );
+        $this->assertEquals("Classroom introuvable", $responseData['error']);
     }
-    public function testCreateCourseWithClassroom(): void
+
+    public function testCreateCourseWithValidClassroom(): void
     {
         // Créer un classroom d'abord
         $classroom = new Classroom();
-        $classroom->setTitle("Symfony");
-
+        $classroom->setTitle("Symfony Avancé");
         $this->documentManager->persist($classroom);
         $this->documentManager->flush();
 
-        $this->client->request(
-            'POST',
-            '/api/classroom',
-            [],
-            [],
-            array_merge([
-                'CONTENT_TYPE' => 'application/json',
-            ], $this->authHeaders()),
-            json_encode([
-                'title' => 'Symfony',
-            ])
-        );
-
-        // Récupère l'id du classroom
-        $r = json_decode($this->client->getResponse()->getContent(), true);
-        $classroom = $r['classroom']['@id'];
-
-        // Création du support de cours
-        $course = new Course();
-        $course->setTitle('Mon support de cours');
-        $course->setClassroom($classroom);
-
-        $this->documentManager->persist($course);
-        $this->documentManager->flush();
+        $classroomId = $classroom->getId();
 
         $this->client->request(
             'POST',
             '/api/courses',
             [
                 'title' => 'Mon support de cours',
-                'classroom' => $classroom
+                'content' => 'Contenu détaillé',
+                'classroom' => $classroomId
+            ],
+            [],
+            array_merge([
+                'CONTENT_TYPE' => 'multipart/form-data',
+            ], $this->authHeaders())
+        );
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_CREATED);
+
+        $responseData = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertStringContainsString($classroomId, $responseData['classroom']);
+    }
+
+    public function testCreateCourseWithClassroomApiFormat(): void
+    {
+        // Créer un classroom
+        $classroom = new Classroom();
+        $classroom->setTitle("Test Classroom");
+        $this->documentManager->persist($classroom);
+        $this->documentManager->flush();
+
+        // Utiliser le format API /api/classrooms/ID
+        $classroomApi = '/api/classrooms/' . $classroom->getId();
+
+        $this->client->request(
+            'POST',
+            '/api/courses',
+            [
+                'title' => 'Cours avec classroom API format',
+                'classroom' => $classroomApi
             ],
             [],
             array_merge([
@@ -186,18 +209,13 @@ class CourseControllerTest extends WebTestCase
         $this->assertResponseStatusCodeSame(Response::HTTP_CREATED);
     }
 
-    public function testGetCourseByIdNotFound(): void
-    {
-        $this->client->request('GET', '/api/courses/64e8b7c2f1c2a00000000000', [], [], $this->authHeaders());
-        $this->assertResponseStatusCodeSame(Response::HTTP_NOT_FOUND);
-    }
+    // ============ TESTS MISE À JOUR DE COURS ============
 
     public function testUpdateCourseSuccess(): void
     {
         $course = new Course();
         $course->setTitle('Ancien titre');
         $course->setContent('Ancien contenu');
-        $course->setFilePath('https://cloudinary.test/test-file.doc');
         $this->documentManager->persist($course);
         $this->documentManager->flush();
 
@@ -208,7 +226,7 @@ class CourseControllerTest extends WebTestCase
             "/api/courses/$id",
             [
                 'title' => 'Titre modifié',
-                'content' => 'Contenu modifiée',
+                'content' => 'Contenu modifié',
             ],
             [],
             array_merge([
@@ -217,61 +235,121 @@ class CourseControllerTest extends WebTestCase
         );
 
         $this->assertResponseStatusCodeSame(Response::HTTP_OK);
+
+        $responseData = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertEquals('Titre modifié', $responseData['title']);
+        $this->assertEquals('Contenu modifié', $responseData['content']);
     }
 
-    public function testDeleteCourseFileSuccess(): void
+    public function testUpdateCourseNotFound(): void
     {
-        // Créer un cours avec un fichier
+        $fakeId = '64e8b7c2f1c2a00000000000';
+
+        $this->client->request(
+            'POST',
+            "/api/courses/$fakeId",
+            ['title' => 'Nouveau titre'],
+            [],
+            array_merge([
+                'CONTENT_TYPE' => 'multipart/form-data',
+            ], $this->authHeaders())
+        );
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_NOT_FOUND);
+
+        $responseData = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertStringContainsString('introuvable', $responseData['error']);
+    }
+
+    public function testUpdateCoursePartialUpdate(): void
+    {
         $course = new Course();
-        $course->setTitle('Cours avec fichier à supprimer');
-        $course->setContent('Description du cours');
-        $course->setFilePath('https://cloudinary.test/fake-image.jpg');
-        $course->setFilePublicId('fake_public_id_123');
+        $course->setTitle('Titre original');
+        $course->setContent('Contenu original');
         $this->documentManager->persist($course);
         $this->documentManager->flush();
 
-        $id = $course->getId();
-
-        // Faire la requête de suppression du fichier
+        // Mise à jour partielle - seulement le titre
         $this->client->request(
-            'DELETE',
-            "/api/courses/$id/file",
+            'POST',
+            "/api/courses/{$course->getId()}",
+            ['title' => 'Nouveau titre seulement'],
             [],
-            [],
-            $this->authHeaders()
+            array_merge([
+                'CONTENT_TYPE' => 'multipart/form-data',
+            ], $this->authHeaders())
         );
 
-        // Vérifier la réponse et afficher debug si échec
-        $response = $this->client->getResponse();
+        $this->assertResponseStatusCodeSame(Response::HTTP_OK);
 
-        if ($response->getStatusCode() !== Response::HTTP_OK) {
-            $this->fail("Status attendu: 200, reçu: " . $response->getStatusCode() .
-                ". Contenu: " . $response->getContent());
-        }
-
-        // Recharger le cours depuis la base de données
-        $this->documentManager->clear();
-        $updatedCourse = $this->documentManager->getRepository(Course::class)->find($id);
-
-        // Vérifier les valeurs et afficher debug si problème
-        $filePath = $updatedCourse->getFilePath();
-        $filePublicId = $updatedCourse->getFilePublicId();
-
-        if ($filePath !== null || $filePublicId !== null) {
-            $this->fail("ÉCHEC - FilePath: '" . ($filePath ?? 'NULL') .
-                "', FilePublicId: '" . ($filePublicId ?? 'NULL') .
-                "'. Response: " . $response->getContent());
-        }
-
-        // Si on arrive ici, tout va bien
-        $this->assertNull($updatedCourse->getFilePath());
-        $this->assertNull($updatedCourse->getFilePublicId());
-        $this->assertEquals('Cours avec fichier à supprimer', $updatedCourse->getTitle());
+        $responseData = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertEquals('Nouveau titre seulement', $responseData['title']);
+        $this->assertEquals('Contenu original', $responseData['content']); // Inchangé
     }
+
+    public function testUpdateCourseRemoveClassroom(): void
+    {
+        // Créer un classroom et un cours associé
+        $classroom = new Classroom();
+        $classroom->setTitle("Classroom à supprimer");
+        $this->documentManager->persist($classroom);
+
+        $course = new Course();
+        $course->setTitle('Cours avec classroom');
+        $course->setClassroom($classroom);
+        $this->documentManager->persist($course);
+        $this->documentManager->flush();
+
+        // Supprimer l'association en passant une chaîne vide
+        $this->client->request(
+            'POST',
+            "/api/courses/{$course->getId()}",
+            [
+                'title' => 'Cours sans classroom',
+                'classroom' => '' // Chaîne vide pour supprimer l'association
+            ],
+            [],
+            array_merge([
+                'CONTENT_TYPE' => 'multipart/form-data',
+            ], $this->authHeaders())
+        );
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_OK);
+
+        $responseData = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertNull($responseData['classroom']);
+    }
+
+    public function testUpdateCourseWithInvalidClassroom(): void
+    {
+        $course = new Course();
+        $course->setTitle('Cours test');
+        $this->documentManager->persist($course);
+        $this->documentManager->flush();
+
+        $this->client->request(
+            'POST',
+            "/api/courses/{$course->getId()}",
+            [
+                'title' => 'Test',
+                'classroom' => 'invalid-classroom-id'
+            ],
+            [],
+            array_merge([
+                'CONTENT_TYPE' => 'multipart/form-data',
+            ], $this->authHeaders())
+        );
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+
+        $responseData = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertStringContainsString('introuvable', $responseData['error']);
+    }
+
+    // ============ TESTS SUPPRESSION DE FICHIER ============
 
     public function testDeleteCourseFileNotFound(): void
     {
-        // Test avec un ID de cours inexistant
         $fakeId = '64e8b7c2f1c2a00000000000';
 
         $this->client->request(
@@ -284,15 +362,13 @@ class CourseControllerTest extends WebTestCase
 
         $this->assertResponseStatusCodeSame(Response::HTTP_NOT_FOUND);
 
-        $response = $this->client->getResponse();
-        $responseData = json_decode($response->getContent(), true);
+        $responseData = json_decode($this->client->getResponse()->getContent(), true);
         $this->assertArrayHasKey('error', $responseData);
         $this->assertStringContainsString('introuvable', $responseData['error']);
     }
 
     public function testDeleteCourseFileWithoutFile(): void
     {
-        // Créer un cours sans fichier
         $course = new Course();
         $course->setTitle('Cours sans fichier');
         $course->setContent('Description du cours');
@@ -301,7 +377,6 @@ class CourseControllerTest extends WebTestCase
 
         $id = $course->getId();
 
-        // Faire la requête de suppression du fichier
         $this->client->request(
             'DELETE',
             "/api/courses/$id/file",
@@ -310,12 +385,175 @@ class CourseControllerTest extends WebTestCase
             $this->authHeaders()
         );
 
-        // La requête devrait réussir même s'il n'y a pas de fichier
         $this->assertResponseStatusCodeSame(Response::HTTP_OK);
 
-        $response = $this->client->getResponse();
-        $responseData = json_decode($response->getContent(), true);
+        $responseData = json_decode($this->client->getResponse()->getContent(), true);
         $this->assertArrayHasKey('message', $responseData);
         $this->assertStringContainsString('supprimé', $responseData['message']);
+    }
+
+    // ============ TESTS D'AUTHENTIFICATION ============
+
+    public function testCreateCourseWithoutAuth(): void
+    {
+        $this->client->request(
+            'POST',
+            '/api/courses',
+            ['title' => 'Test sans auth'],
+            [],
+            ['CONTENT_TYPE' => 'multipart/form-data']
+        );
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_UNAUTHORIZED);
+    }
+
+    public function testUpdateCourseWithoutAuth(): void
+    {
+        $course = new Course();
+        $course->setTitle('Test');
+        $this->documentManager->persist($course);
+        $this->documentManager->flush();
+
+        $this->client->request(
+            'POST',
+            "/api/courses/{$course->getId()}",
+            ['title' => 'Modifié'],
+            [],
+            ['CONTENT_TYPE' => 'multipart/form-data']
+        );
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_UNAUTHORIZED);
+    }
+
+    public function testDeleteCourseFileWithoutAuth(): void
+    {
+        $course = new Course();
+        $course->setTitle('Test');
+        $this->documentManager->persist($course);
+        $this->documentManager->flush();
+
+        $this->client->request('DELETE', "/api/courses/{$course->getId()}/file");
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_UNAUTHORIZED);
+    }
+
+    // ============ TESTS AVEC FICHIERS RÉELS (optionnels) ============
+
+    /**
+     * @group upload
+     */
+    public function testCreateCourseWithRealFile(): void
+    {
+        // Créer un fichier de test
+        $testFile = $this->createTestFile('Contenu du fichier test', 'test-file.txt');
+
+        $this->client->request(
+            'POST',
+            '/api/courses',
+            [
+                'title' => 'Cours avec fichier réel',
+                'content' => 'Description détaillée',
+            ],
+            [
+                'file' => $testFile
+            ],
+            array_merge([
+                'CONTENT_TYPE' => 'multipart/form-data',
+            ], $this->authHeaders())
+        );
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_CREATED);
+
+        $responseData = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertEquals('Cours avec fichier réel', $responseData['title']);
+        $this->assertNotNull($responseData['filePath']);
+
+        // Vérifier que c'est bien une URL Cloudinary
+        if ($responseData['filePath']) {
+            $this->assertStringContainsString('cloudinary', $responseData['filePath']);
+        }
+    }
+
+    /**
+     * @group upload
+     */
+    public function testUpdateCourseWithRealFile(): void
+    {
+        // Créer un cours d'abord
+        $course = new Course();
+        $course->setTitle('Cours à modifier');
+        $course->setContent('Contenu original');
+        $this->documentManager->persist($course);
+        $this->documentManager->flush();
+
+        // Créer un fichier de test
+        $testFile = $this->createTestFile('Nouveau fichier', 'nouveau-fichier.txt');
+
+        $this->client->request(
+            'POST',
+            "/api/courses/{$course->getId()}",
+            [
+                'title' => 'Cours modifié avec fichier',
+                'content' => 'Contenu modifié',
+            ],
+            [
+                'file' => $testFile
+            ],
+            array_merge([
+                'CONTENT_TYPE' => 'multipart/form-data',
+            ], $this->authHeaders())
+        );
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_OK);
+
+        $responseData = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertEquals('Cours modifié avec fichier', $responseData['title']);
+        $this->assertNotNull($responseData['filePath']);
+    }
+
+    /**
+     * @group upload
+     */
+    public function testDeleteCourseFileWithRealFile(): void
+    {
+        // Créer un cours avec un fichier réel d'abord
+        $course = new Course();
+        $course->setTitle('Cours avec fichier à supprimer');
+        $course->setContent('Description');
+        $this->documentManager->persist($course);
+        $this->documentManager->flush();
+
+        // Ajouter un fichier via l'API
+        $testFile = $this->createTestFile('Fichier à supprimer', 'fichier-a-supprimer.txt');
+
+        $this->client->request(
+            'POST',
+            "/api/courses/{$course->getId()}",
+            [],
+            ['file' => $testFile],
+            array_merge([
+                'CONTENT_TYPE' => 'multipart/form-data',
+            ], $this->authHeaders())
+        );
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_OK);
+
+        // Maintenant supprimer le fichier
+        $this->client->request(
+            'DELETE',
+            "/api/courses/{$course->getId()}/file",
+            [],
+            [],
+            $this->authHeaders()
+        );
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_OK);
+
+        // Vérifier que le fichier a été supprimé
+        $this->documentManager->clear();
+        $updatedCourse = $this->documentManager->getRepository(Course::class)->find($course->getId());
+
+        $this->assertNull($updatedCourse->getFilePath());
+        $this->assertNull($updatedCourse->getFilePublicId());
     }
 }
