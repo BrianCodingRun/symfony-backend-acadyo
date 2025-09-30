@@ -63,17 +63,23 @@ final class CourseController extends AbstractController
 
             // Upload fichier Cloudinary
             if ($file) {
-                $result = $this->cloudinaryService->uploadFile($file->getPathname(), [
-                    'folder' => 'acadyo/courses',
-                    'resource_type' => 'auto',
-                ]);
+                $originalName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+
+                $result = $this->cloudinaryService->uploadFile(
+                    $file->getPathname(),
+                    [
+                        'folder' => 'acadyo/courses',
+                        'resource_type' => 'raw',
+                        'public_id' => $originalName,
+                    ]
+                );
 
                 if (!$result || !isset($result['secure_url'])) {
                     return $this->json(['error' => 'Erreur lors de l\'upload sur Cloudinary'], Response::HTTP_BAD_REQUEST);
                 }
 
                 $course->setFilePath($result['secure_url']);
-                $course->setFilePublicId($result['public_id']); // nouveau champ
+                $course->setFilePublicId($result['public_id']);
             }
 
             // Validation
@@ -157,10 +163,16 @@ final class CourseController extends AbstractController
                     $this->cloudinaryService->deleteFile($course->getFilePublicId());
                 }
 
-                $result = $this->cloudinaryService->uploadFile($file->getPathname(), [
-                    'folder' => 'acadyo/courses',
-                    'resource_type' => 'auto',
-                ]);
+                $originalName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+
+                $result = $this->cloudinaryService->uploadFile(
+                    $file->getPathname(),
+                    [
+                        'folder' => 'acadyo/courses',
+                        'resource_type' => 'raw',
+                        'public_id' => $originalName,
+                    ]
+                );
 
                 if (!$result || !isset($result['secure_url'])) {
                     return $this->json(['error' => 'Erreur lors de l\'upload sur Cloudinary'], Response::HTTP_BAD_REQUEST);

@@ -2,6 +2,12 @@ api_platform:
     title: Hello API Platform
     version: 1.0.0
     use_symfony_listeners: true
+    # Désactive complètement l'intégration Doctrine ORM
+    doctrine: false
+
+    # Configure pour utiliser MongoDB ODM uniquement
+    doctrine_mongodb_odm:
+        enabled: true
     formats:
         jsonld: ["application/ld+json"]
         multipart: ["multipart/form-data"]

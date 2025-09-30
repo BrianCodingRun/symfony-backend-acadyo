@@ -51,10 +51,40 @@ class CloudinaryService
       throw new \RuntimeException("Type de fichier non autorisé ($mimeType).");
     }
 
+    // Options par défaut pour forcer l'accès public
+    $defaultOptions = [
+      'type' => 'upload',
+      'access_control' => [
+        [
+          'access_type' => 'anonymous'
+        ]
+      ],
+    ];
+
+    // Merge avec les options passées en paramètre
+    $options = array_merge($defaultOptions, $options);
+
     return $this->cloudinary->uploadApi()->upload($filePath, $options)->getArrayCopy();
   }
+
   public function deleteFile(string $publicId): array
   {
-    return $this->cloudinary->uploadApi()->destroy($publicId)->getArrayCopy();
+    return $this->cloudinary->uploadApi()->destroy($publicId, [
+      'resource_type' => 'raw',
+      'type' => 'upload'
+    ])->getArrayCopy();
+  }
+
+  // Méthode pour débloquer un fichier existant
+  public function updateAccessControl(string $publicId): array
+  {
+    return $this->cloudinary->adminApi()->update($publicId, [
+      'resource_type' => 'raw',
+      'access_control' => [
+        [
+          'access_type' => 'anonymous'
+        ]
+      ]
+    ])->getArrayCopy();
   }
 }

@@ -43,7 +43,7 @@ class AuthController extends AbstractController
         $dm->flush();
 
         // Envoi email
-        $resetLink = "http://localhost:5173/reset-password?token=$token";
+        $resetLink = "$_ENV[FRONTEND_URL]/reset-password?token=$token";
         $mailer->send(
             (new Email())
                 ->from("bcbcoupama@gmail.com")
